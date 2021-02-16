@@ -81,6 +81,7 @@ settingsGroups.showLiveWpm = new SettingsGroup(
     settingsGroups.keymapMode.updateButton();
   }
 );
+settingsGroups.showLiveAcc = new SettingsGroup("showLiveAcc", setShowLiveAcc);
 settingsGroups.showTimerProgress = new SettingsGroup(
   "showTimerProgress",
   setShowTimerProgress
@@ -218,6 +219,13 @@ settingsGroups.minWpm = new SettingsGroup("minWpm", setMinWpm, () => {
     );
   }
 });
+settingsGroups.minAcc = new SettingsGroup("minAcc", setMinAcc, () => {
+  if (config.minAcc === "custom") {
+    $(".pageSettings .section.minAcc input.customMinAcc").removeClass("hidden");
+  } else {
+    $(".pageSettings .section.minAcc input.customMinAcc").addClass("hidden");
+  }
+});
 settingsGroups.smoothLineScroll = new SettingsGroup(
   "smoothLineScroll",
   setSmoothLineScroll
@@ -261,7 +269,7 @@ async function fillSettingsPage() {
   refreshThemeButtons();
 
   let langEl = $(".pageSettings .section.language .buttons").empty();
-  getLanguageList().then((languages) => {
+  Misc.getLanguageList().then((languages) => {
     languages.forEach((language) => {
       langEl.append(
         `<div class="language button" language='${language}'>${language.replace(
@@ -299,7 +307,7 @@ async function fillSettingsPage() {
 
   let funboxEl = $(".pageSettings .section.funbox .buttons").empty();
   funboxEl.append(`<div class="funbox button" funbox='none'>none</div>`);
-  getFunboxList().then((funboxModes) => {
+  Misc.getFunboxList().then((funboxModes) => {
     funboxModes.forEach((funbox) => {
       if (funbox.name === "mirror") {
         funboxEl.append(
@@ -325,7 +333,7 @@ async function fillSettingsPage() {
   });
 
   let fontsEl = $(".pageSettings .section.fontFamily .buttons").empty();
-  getFontsList().then((fonts) => {
+  Misc.getFontsList().then((fonts) => {
     fonts.forEach((font) => {
       fontsEl.append(
         `<div class="button" style="font-family:${
@@ -350,7 +358,7 @@ function refreshThemeButtons() {
     activeThemeName = randomTheme;
   }
 
-  getSortedThemesList().then((themes) => {
+  Misc.getSortedThemesList().then((themes) => {
     //first show favourites
     if (config.favThemes.length > 0) {
       favThemesEl.css({ paddingBottom: "1rem" });
@@ -425,6 +433,15 @@ function updateSettingsPage() {
       "hidden"
     );
   }
+
+  if (config.minAcc === "custom") {
+    $(".pageSettings .section.minAcc input.customMinAcc").removeClass("hidden");
+    $(".pageSettings .section.minAcc input.customMinAcc").val(
+      config.minAccCustom
+    );
+  } else {
+    $(".pageSettings .section.minAcc input.customMinAcc").addClass("hidden");
+  }
 }
 
 function showCustomThemeShare() {
@@ -456,9 +473,10 @@ function hideCustomThemeShare() {
         $("#customThemeShareWrapper input").val()
       );
     } catch (e) {
-      showNotification(
+      Notifications.add(
         "Something went wrong. Reverting to default custom colors.",
-        3000
+        0,
+        4
       );
       config.customThemeColors = defaultConfig.customThemeColors;
     }
@@ -503,15 +521,16 @@ $("#shareCustomThemeButton").click((e) => {
     );
 
     let url =
-      "https://monkeytype.com?" + objectToQueryString({ customTheme: share });
+      "https://monkeytype.com?" +
+      Misc.objectToQueryString({ customTheme: share });
     navigator.clipboard.writeText(url).then(
       function () {
-        showNotification("URL Copied to clipboard", 2000);
+        Notifications.add("URL Copied to clipboard", 0);
       },
       function (err) {
-        showNotification(
+        Notifications.add(
           "Something went wrong when copying the URL: " + err,
-          5000
+          -1
         );
       }
     );
@@ -548,9 +567,14 @@ function hideAccountSettingsSection() {
 }
 
 function refreshTagsSettingsSection() {
-  if (firebase.auth().currentUser !== null && dbSnapshot !== null) {
+  if (firebase.auth().currentUser !== null && db_getSnapshot() !== null) {
     let tagsEl = $(".pageSettings .section.tags .tagsList").empty();
-    dbSnapshot.tags.forEach((tag) => {
+    db_getSnapshot().tags.forEach((tag) => {
+      let tagPbString = "No PB found";
+      let balloon = "";
+      if (tag.pb != undefined && tag.pb > 0) {
+        tagPbString = `PB: ${tag.pb}`;
+      }
       if (tag.active === true) {
         tagsEl.append(`
 
@@ -560,6 +584,7 @@ function refreshTagsSettingsSection() {
                   </div>
                   <div class="title">${tag.name}</div>
                   <div class="editButton"><i class="fas fa-pen"></i></div>
+                  <div class="clearPbButton hidden" aria-label="${tagPbString}" data-balloon-pos="up"><i class="fas fa-crown"></i></div>
                   <div class="removeButton"><i class="fas fa-trash"></i></div>
               </div>
 
@@ -573,6 +598,7 @@ function refreshTagsSettingsSection() {
                   </div>
                   <div class="title">${tag.name}</div>
                   <div class="editButton"><i class="fas fa-pen"></i></div>
+                  <div class="clearPbButton hidden" aria-label="${tagPbString}" data-balloon-pos="up"><i class="fas fa-crown"></i></div>
                   <div class="removeButton"><i class="fas fa-trash"></i></div>
               </div>
 
@@ -618,7 +644,7 @@ function setCustomThemeInputs() {
 }
 
 function showActiveTags() {
-  dbSnapshot.tags.forEach((tag) => {
+  db_getSnapshot().tags.forEach((tag) => {
     if (tag.active === true) {
       $(
         `.pageSettings .section.tags .tagsList .tag[id='${tag.id}'] .active`
@@ -632,7 +658,7 @@ function showActiveTags() {
 }
 
 function toggleTag(tagid, nosave = false) {
-  dbSnapshot.tags.forEach((tag) => {
+  db_getSnapshot().tags.forEach((tag) => {
     if (tag.id === tagid) {
       if (tag.active === undefined) {
         tag.active = true;
@@ -650,10 +676,10 @@ function updateDiscordSettingsSection() {
   if (firebase.auth().currentUser == null) {
     $(".pageSettings .section.discordIntegration").addClass("hidden");
   } else {
-    if (dbSnapshot == null) return;
+    if (db_getSnapshot() == null) return;
     $(".pageSettings .section.discordIntegration").removeClass("hidden");
 
-    if (dbSnapshot.discordId == undefined) {
+    if (db_getSnapshot().discordId == undefined) {
       //show button
       $(".pageSettings .section.discordIntegration .buttons").removeClass(
         "hidden"
@@ -692,6 +718,16 @@ $(document).on(
   }
 );
 
+$(document).on(
+  "focusout",
+  ".pageSettings .section.minAcc input.customMinAcc",
+  (e) => {
+    setMinAccCustom(
+      parseInt($(".pageSettings .section.minAcc input.customMinAcc").val())
+    );
+  }
+);
+
 $(document).on("click", ".pageSettings .section.themes .theme.button", (e) => {
   let theme = $(e.currentTarget).attr("theme");
   if (!$(e.target).hasClass("favButton")) {
@@ -715,11 +751,11 @@ $(
   ".pageSettings .section.discordIntegration .buttons .generateCodeButton"
 ).click((e) => {
   showBackgroundLoader();
-  generatePairingCode({ uid: firebase.auth().currentUser.uid })
+  CloudFunctions.generatePairingCode({ uid: firebase.auth().currentUser.uid })
     .then((ret) => {
       hideBackgroundLoader();
       if (ret.data.status === 1 || ret.data.status === 2) {
-        dbSnapshot.pairingCode = ret.data.pairingCode;
+        db_getSnapshot().pairingCode = ret.data.pairingCode;
         $(".pageSettings .section.discordIntegration .code .bottom").text(
           ret.data.pairingCode
         );
@@ -731,7 +767,7 @@ $(
     })
     .catch((e) => {
       hideBackgroundLoader();
-      showNotification("Something went wrong. Error: " + e.message, 4000);
+      Notifications.add("Something went wrong. Error: " + e.message, -1);
     });
 });
 
@@ -739,15 +775,17 @@ $(".pageSettings .section.discordIntegration #unlinkDiscordButton").click(
   (e) => {
     if (confirm("Are you sure?")) {
       showBackgroundLoader();
-      unlinkDiscord({ uid: firebase.auth().currentUser.uid }).then((ret) => {
+      CloudFunctions.unlinkDiscord({
+        uid: firebase.auth().currentUser.uid,
+      }).then((ret) => {
         hideBackgroundLoader();
         console.log(ret);
         if (ret.data.status === 1) {
-          dbSnapshot.discordId = null;
-          showNotification("Accounts unlinked", 2000);
+          db_getSnapshot().discordId = null;
+          Notifications.add("Accounts unlinked", 0);
           updateDiscordSettingsSection();
         } else {
-          showNotification("Something went wrong: " + ret.data.message, 5000);
+          Notifications.add("Something went wrong: " + ret.data.message, -1);
           updateDiscordSettingsSection();
         }
       });
@@ -778,6 +816,17 @@ $(document).on(
 $(document).on("click", ".pageSettings .section.tags .addTagButton", (e) => {
   showEditTags("add");
 });
+
+$(document).on(
+  "click",
+  ".pageSettings .section.tags .tagsList .tag .clearPbButton",
+  (e) => {
+    let target = e.currentTarget;
+    let tagid = $(target).parent(".tag").attr("id");
+    let tagname = $(target).siblings(".title")[0].innerHTML;
+    simplePopups.clearTagPb.show([tagid, tagname]);
+  }
+);
 
 $(document).on(
   "click",
@@ -857,7 +906,7 @@ $(".pageSettings .saveCustomThemeButton").click((e) => {
     }
   );
   setCustomThemeColors(save);
-  showNotification("Custom theme colors saved", 1000);
+  Notifications.add("Custom theme colors saved", 0);
 });
 
 $(".pageSettings #loadCustomColorsFromPreset").click((e) => {
@@ -909,12 +958,12 @@ $("#exportSettingsButton").click((e) => {
   let configJSON = JSON.stringify(config);
   navigator.clipboard.writeText(configJSON).then(
     function () {
-      showNotification("JSON Copied to clipboard", 2000);
+      Notifications.add("JSON Copied to clipboard", 0);
     },
     function (err) {
-      showNotification(
+      Notifications.add(
         "Something went wrong when copying the settings JSON: " + err,
-        5000
+        -1
       );
     }
   );
@@ -940,9 +989,9 @@ function hideSettingsImport() {
       try {
         applyConfig(JSON.parse($("#settingsImportWrapper input").val()));
       } catch (e) {
-        showNotification(
+        Notifications.add(
           "An error occured while importing settings: " + e,
-          5000
+          -1
         );
       }
       saveConfigToCookie();

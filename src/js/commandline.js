@@ -1,3 +1,22 @@
+function canBailOut() {
+  return (
+    (config.mode === "custom" &&
+      customText.isWordRandom &&
+      customText.word >= 5000) ||
+    (config.mode === "custom" &&
+      !customText.isWordRandom &&
+      !customText.isTimeRandom &&
+      customText.text.length >= 5000) ||
+    (config.mode === "custom" &&
+      customText.isTimeRandom &&
+      customText.time >= 3600) ||
+    (config.mode === "words" && config.words >= 5000) ||
+    config.words === 0 ||
+    (config.mode === "time" && (config.time >= 3600 || config.time === 0)) ||
+    config.mode == "zen"
+  );
+}
+
 function addChildCommands(
   unifiedCommands,
   commandItem,
@@ -175,6 +194,14 @@ let commands = {
       },
     },
     {
+      id: "toggleShowLiveAcc",
+      display: "Toggle live accuracy display",
+      exec: () => {
+        toggleShowLiveAcc();
+        saveConfigToCookie();
+      },
+    },
+    {
       id: "toggleTimerBar",
       display: "Toggle timer display",
       exec: () => {
@@ -248,11 +275,20 @@ let commands = {
       },
     },
     {
-      id: "changePaceCaret",
+      id: "changeMinWpm",
       display: "Change min wpm mode...",
       subgroup: true,
       exec: () => {
         currentCommands.push(commandsMinWpm);
+        showCommandLine();
+      },
+    },
+    {
+      id: "changeMinAcc",
+      display: "Change min accuracy mode...",
+      subgroup: true,
+      exec: () => {
+        currentCommands.push(commandsMinAcc);
         showCommandLine();
       },
     },
@@ -557,7 +593,7 @@ let commands = {
       id: "toggleFullscreen",
       display: "Toggle Fullscreen",
       exec: () => {
-        toggleFullscreen();
+        Misc.toggleFullscreen();
       },
     },
     {
@@ -575,36 +611,27 @@ let commands = {
               exec: () => {
                 hideCommandLine();
               },
+              available: () => {
+                return canBailOut();
+              },
             },
             {
               id: "bailOutForSure",
               display: "Yes, I am sure",
               exec: () => {
-                if (
-                  (config.mode === "custom" &&
-                    customTextIsRandom &&
-                    customTextWordCount >= 5000) ||
-                  (config.mode === "custom" &&
-                    !customTextIsRandom &&
-                    customText.length >= 5000) ||
-                  (config.mode === "words" && config.words >= 5000) ||
-                  config.words === 0 ||
-                  (config.mode === "time" &&
-                    (config.time >= 3600 || config.time === 0))
-                ) {
-                  bailout = true;
-                  showResult();
-                } else {
-                  showNotification(
-                    "You can only bailout out of test longer than 3600 seconds / 5000 words.",
-                    5000
-                  );
-                }
+                bailout = true;
+                showResult();
+              },
+              available: () => {
+                return canBailOut();
               },
             },
           ],
         });
         showCommandLine();
+      },
+      available: () => {
+        return canBailOut();
       },
     },
     {
@@ -618,53 +645,59 @@ let commands = {
       id: "repeatTest",
       display: "Repeat test",
       exec: () => {
-        if (resultVisible) {
-          restartTest(true);
-        }
+        restartTest(true);
+      },
+      available: () => {
+        return resultVisible;
       },
     },
     {
       id: "practiceMissedWords",
       display: "Practice missed words",
       exec: () => {
-        if (resultVisible) {
-          if (Object.keys(missedWords).length > 0) {
-            initPractiseMissedWords();
-          } else {
-            showNotification("You haven't missed any words.", 2000);
-          }
-        }
+        initPractiseMissedWords();
+      },
+      available: () => {
+        return resultVisible && Object.keys(missedWords).length > 0;
       },
     },
     {
       id: "toggleWordHistory",
       display: "Toggle word history",
       exec: () => {
-        if (resultVisible) {
-          toggleResultWordsDisplay();
-        }
+        toggleResultWordsDisplay();
+      },
+      available: () => {
+        return resultVisible;
       },
     },
     {
       id: "saveScreenshot",
       display: "Save screenshot",
       exec: () => {
-        if (resultVisible) {
-          copyResultToClipboard();
-        }
+        copyResultToClipboard();
+      },
+      available: () => {
+        return resultVisible;
       },
     },
     {
       id: "changeCustomModeText",
       display: "Change custom text",
       exec: () => {
-        if (config.mode === "custom") {
-          showCustomTextPopup();
-          setTimeout(() => {
-            // Workaround to focus textarea since hideCommandLine() will focus test words
-            $("#customTextPopup textarea").focus();
-          }, 150);
-        }
+        showCustomTextPopup();
+        setTimeout(() => {
+          // Workaround to focus textarea since hideCommandLine() will focus test words
+          $("#customTextPopup textarea").focus();
+        }, 150);
+      },
+    },
+    {
+      id: "toggleMonkey",
+      display: "Toggle Monkey",
+      visible: false,
+      exec: () => {
+        toggleMonkey();
       },
     },
   ],
@@ -852,7 +885,7 @@ let commandsEnableAds = {
       display: "off",
       exec: () => {
         setEnableAds("off");
-        showNotification("Don't forget to refresh the page!", 3000);
+        Notifications.add("Don't forget to refresh the page!", 0);
       },
     },
     {
@@ -860,7 +893,7 @@ let commandsEnableAds = {
       display: "on",
       exec: () => {
         setEnableAds("on");
-        showNotification("Don't forget to refresh the page!", 3000);
+        Notifications.add("Don't forget to refresh the page!", 0);
       },
     },
     {
@@ -868,7 +901,7 @@ let commandsEnableAds = {
       display: "Sellout",
       exec: () => {
         setEnableAds("max");
-        showNotification("Don't forget to refresh the page!", 3000);
+        Notifications.add("Don't forget to refresh the page!", 0);
       },
     },
   ],
@@ -974,6 +1007,13 @@ let commandsPaceCaret = {
       },
     },
     {
+      id: "setPaceCaretAverage",
+      display: "average",
+      exec: () => {
+        setPaceCaret("average");
+      },
+    },
+    {
       id: "setPaceCaretCustom",
       display: "custom...",
       input: true,
@@ -1002,6 +1042,28 @@ let commandsMinWpm = {
       exec: (input) => {
         setMinWpmCustomSpeed(input);
         setMinWpm("custom");
+      },
+    },
+  ],
+};
+
+let commandsMinAcc = {
+  title: "Change min accuracy mode...",
+  list: [
+    {
+      id: "setMinAccOff",
+      display: "off",
+      exec: () => {
+        setMinAcc("off");
+      },
+    },
+    {
+      id: "setMinAccCustom",
+      display: "custom...",
+      input: true,
+      exec: (input) => {
+        setMinAccCustom(input);
+        setMinAcc("custom");
       },
     },
   ],
@@ -1312,6 +1374,14 @@ let commandsMode = {
         restartTest();
       },
     },
+    {
+      id: "changeModeZen",
+      display: "zen",
+      exec: () => {
+        setMode("zen");
+        restartTest();
+      },
+    },
   ],
 };
 let commandsTimeConfig = {
@@ -1467,14 +1537,14 @@ let commandsTags = {
 };
 
 function updateCommandsTagsList() {
-  if (dbSnapshot.tags.length > 0) {
+  if (db_getSnapshot().tags.length > 0) {
     commandsTags.list = [];
 
     commandsTags.list.push({
       id: "clearTags",
       display: "Clear tags",
       exec: () => {
-        dbSnapshot.tags.forEach((tag) => {
+        db_getSnapshot().tags.forEach((tag) => {
           tag.active = false;
         });
         updateTestModesNotice();
@@ -1482,7 +1552,7 @@ function updateCommandsTagsList() {
       },
     });
 
-    dbSnapshot.tags.forEach((tag) => {
+    db_getSnapshot().tags.forEach((tag) => {
       let dis = tag.name;
 
       if (tag.active === true) {
@@ -1521,10 +1591,10 @@ function updateCommandsTagsList() {
   }
 }
 
-getThemesList().then((themes) => {
+Misc.getThemesList().then((themes) => {
   themes.forEach((theme) => {
     commandsThemes.list.push({
-      id: "changeTheme" + capitalizeFirstLetter(theme.name),
+      id: "changeTheme" + Misc.capitalizeFirstLetter(theme.name),
       display: theme.name.replace(/_/g, " "),
       hover: () => {
         previewTheme(theme.name);
@@ -1541,7 +1611,7 @@ function showFavouriteThemesAtTheTop() {
     commandsThemes.list = [];
     config.favThemes.forEach((theme) => {
       commandsThemes.list.push({
-        id: "changeTheme" + capitalizeFirstLetter(theme),
+        id: "changeTheme" + Misc.capitalizeFirstLetter(theme),
         display: theme.replace(/_/g, " "),
         hover: () => {
           previewTheme(theme);
@@ -1551,11 +1621,11 @@ function showFavouriteThemesAtTheTop() {
         },
       });
     });
-    getThemesList().then((themes) => {
+    Misc.getThemesList().then((themes) => {
       themes.forEach((theme) => {
         if (config.favThemes.includes(theme.name)) return;
         commandsThemes.list.push({
-          id: "changeTheme" + capitalizeFirstLetter(theme.name),
+          id: "changeTheme" + Misc.capitalizeFirstLetter(theme.name),
           display: theme.name.replace(/_/g, " "),
           hover: () => {
             previewTheme(theme.name);
@@ -1574,7 +1644,7 @@ let commandsFonts = {
   list: [],
 };
 
-getFontsList().then((fonts) => {
+Misc.getFontsList().then((fonts) => {
   fonts.forEach((font) => {
     commandsFonts.list.push({
       id: "changeFont" + font.name.replace(/ /g, "_"),
@@ -1604,7 +1674,7 @@ let commandsFunbox = {
   ],
 };
 
-getFunboxList().then((funboxes) => {
+Misc.getFunboxList().then((funboxes) => {
   funboxes.forEach((funbox) => {
     commandsFunbox.list.push({
       id: "changeFunbox" + funbox.name,
@@ -1634,10 +1704,10 @@ let commandsLanguages = {
 };
 
 commandsLanguages.list = [];
-getLanguageList().then((languages) => {
+Misc.getLanguageList().then((languages) => {
   languages.forEach((language) => {
     commandsLanguages.list.push({
-      id: "changeLanguage" + capitalizeFirstLetter(language),
+      id: "changeLanguage" + Misc.capitalizeFirstLetter(language),
       display: language.replace(/_/g, " "),
       exec: () => {
         setLanguage(language);
@@ -1662,7 +1732,7 @@ if (Object.keys(layouts).length > 0) {
   commandsLayouts.list = [];
   Object.keys(layouts).forEach((layout) => {
     commandsLayouts.list.push({
-      id: "changeLayout" + capitalizeFirstLetter(layout),
+      id: "changeLayout" + Misc.capitalizeFirstLetter(layout),
       display: layout.replace(/_/g, " "),
       exec: () => {
         setSavedLayout(layout);
@@ -1696,7 +1766,7 @@ if (Object.keys(layouts).length > 0) {
   Object.keys(layouts).forEach((layout) => {
     if (layout.toString() != "default") {
       commandsKeymapLayouts.list.push({
-        id: "changeKeymapLayout" + capitalizeFirstLetter(layout),
+        id: "changeKeymapLayout" + Misc.capitalizeFirstLetter(layout),
         display: layout.replace(/_/g, " "),
         exec: () => {
           setKeymapLayout(layout);
@@ -1708,7 +1778,18 @@ if (Object.keys(layouts).length > 0) {
 }
 
 $("#commandLine input").keyup((e) => {
-  if (e.keyCode == 38 || e.keyCode == 40 || e.keyCode == 13 || e.code == "Tab")
+  commandLineMouseMode = false;
+  $("#commandLineWrapper #commandLine .suggestions .entry").removeClass(
+    "activeMouse"
+  );
+  if (
+    e.keyCode == 38 ||
+    e.keyCode == 40 ||
+    e.keyCode == 13 ||
+    e.code == "Tab" ||
+    e.code == "AltLeft" ||
+    (e.altKey && (e.keyCode == 74 || e.keyCode == 75))
+  )
     return;
   updateSuggestedCommands();
 });
@@ -1716,22 +1797,13 @@ $("#commandLine input").keyup((e) => {
 $(document).ready((e) => {
   $(document).keydown((event) => {
     //escape
-    if (
-      (event.keyCode == 27 && !config.swapEscAndTab) ||
-      (event["keyCode"] == 9 && config.swapEscAndTab)
-    ) {
+    if (event.keyCode == 27 || (event.keyCode == 9 && config.swapEscAndTab)) {
       event.preventDefault();
       if (!$("#leaderboardsWrapper").hasClass("hidden")) {
         //maybe add more condition for closing other dialogs in the future as well
         event.preventDefault();
         hideLeaderboards();
-        return;
-      } else if ($("#commandLineWrapper").hasClass("hidden")) {
-        if (config.singleListCommandLine == "on")
-          useSingleListCommandLine(false);
-        else currentCommands = [commands];
-        showCommandLine();
-      } else {
+      } else if (!$("#commandLineWrapper").hasClass("hidden")) {
         if (currentCommands.length > 1) {
           currentCommands.pop();
           $("#commandLine").removeClass("allCommands");
@@ -1745,6 +1817,11 @@ $(document).ready((e) => {
         } else {
           setTheme(config.theme);
         }
+      } else if (event.keyCode == 9 || !config.swapEscAndTab) {
+        if (config.singleListCommandLine == "on")
+          useSingleListCommandLine(false);
+        else currentCommands = [commands];
+        showCommandLine();
       }
     }
   });
@@ -1778,10 +1855,40 @@ $("#commandInput input").keydown((e) => {
   return;
 });
 
+let commandLineMouseMode = false;
+
+$(document).on("mousemove", () => {
+  if (!commandLineMouseMode) commandLineMouseMode = true;
+});
+
+$(document).on(
+  "mouseenter",
+  "#commandLineWrapper #commandLine .suggestions .entry",
+  (e) => {
+    if (!commandLineMouseMode) return;
+    $(e.target).addClass("activeMouse");
+  }
+);
+
+$(document).on(
+  "mouseleave",
+  "#commandLineWrapper #commandLine .suggestions .entry",
+  (e) => {
+    if (!commandLineMouseMode) return;
+    $(e.target).removeClass("activeMouse");
+  }
+);
+
 $("#commandLineWrapper #commandLine .suggestions").on("mouseover", (e) => {
+  if (!commandLineMouseMode) return;
+  console.log("clearing keyboard active");
   $("#commandLineWrapper #commandLine .suggestions .entry").removeClass(
-    "active"
+    "activeKeyboard"
   );
+  if (isPreviewingTheme) {
+    applyCustomThemeColors();
+    // previewTheme(config.theme, false);
+  }
   let hoverId = $(e.target).attr("command");
   try {
     let list = currentCommands[currentCommands.length - 1];
@@ -1812,7 +1919,9 @@ $("#commandLineWrapper").click((e) => {
 
 $(document).keydown((e) => {
   if (isPreviewingTheme) {
-    previewTheme(config.theme, false);
+    console.log("applying theme");
+    applyCustomThemeColors();
+    // previewTheme(config.theme, false);
   }
   if (!$("#commandLineWrapper").hasClass("hidden")) {
     $("#commandLine input").focus();
@@ -1840,7 +1949,12 @@ $(document).keydown((e) => {
       triggerCommand(command);
       return;
     }
-    if (e.keyCode == 38 || e.keyCode == 40 || e.code == "Tab") {
+    if (
+      e.keyCode == 38 ||
+      e.keyCode == 40 ||
+      e.code == "Tab" ||
+      (e.altKey && (e.keyCode == 74 || e.keyCode == 75))
+    ) {
       e.preventDefault();
       $("#commandLineWrapper #commandLine .suggestions .entry").unbind(
         "mouseenter mouseleave"
@@ -1851,7 +1965,11 @@ $(document).keydown((e) => {
       $.each(entries, (index, obj) => {
         if ($(obj).hasClass("activeKeyboard")) activenum = index;
       });
-      if (e.keyCode == 38 || (e.code == "Tab" && e.shiftKey)) {
+      if (
+        e.keyCode == 38 ||
+        (e.code == "Tab" && e.shiftKey) ||
+        (e.altKey && e.keyCode == 75)
+      ) {
         entries.removeClass("activeKeyboard");
         if (activenum == 0) {
           $(entries[entries.length - 1]).addClass("activeKeyboard");
@@ -1861,7 +1979,11 @@ $(document).keydown((e) => {
           hoverId = $(entries[activenum]).attr("command");
         }
       }
-      if (e.keyCode == 40 || (e.code == "Tab" && !e.shiftKey)) {
+      if (
+        e.keyCode == 40 ||
+        (e.code == "Tab" && !e.shiftKey) ||
+        (e.altKey && e.keyCode == 74)
+      ) {
         entries.removeClass("activeKeyboard");
         if (activenum + 1 == entries.length) {
           $(entries[0]).addClass("activeKeyboard");
@@ -1935,6 +2057,8 @@ function triggerCommand(command) {
 }
 
 function hideCommandLine() {
+  previewFontFamily(config.fontFamily);
+  applyCustomThemeColors();
   $("#commandLineWrapper")
     .stop(true, true)
     .css("opacity", 1)
@@ -2014,7 +2138,8 @@ function updateSuggestedCommands() {
       let foundcount = 0;
       $.each(inputVal, (index2, obj2) => {
         if (obj2 == "") return;
-        let re = new RegExp("\\b" + obj2, "g");
+        let escaped = obj2.replace(/[-[\]{}()*+?.,\\^$|#\s]/g, "\\$&");
+        let re = new RegExp("\\b" + escaped, "g");
         let res = obj.display.toLowerCase().match(re);
         if (res != null && res.length > 0) {
           foundcount++;
@@ -2034,14 +2159,15 @@ function updateSuggestedCommands() {
 
 function displayFoundCommands() {
   $("#commandLine .suggestions").empty();
+  let commandsHTML = "";
   let list = currentCommands[currentCommands.length - 1];
   $.each(list.list, (index, obj) => {
-    if (obj.found) {
-      $("#commandLine .suggestions").append(
-        '<div class="entry" command="' + obj.id + '">' + obj.display + "</div>"
-      );
+    if (obj.found && (obj.available !== undefined ? obj.available() : true)) {
+      commandsHTML +=
+        '<div class="entry" command="' + obj.id + '">' + obj.display + "</div>";
     }
   });
+  $("#commandLine .suggestions").html(commandsHTML);
   if ($("#commandLine .suggestions .entry").length == 0) {
     $("#commandLine .separator").css({ height: 0, margin: 0 });
   } else {

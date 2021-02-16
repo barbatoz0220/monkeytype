@@ -71,6 +71,10 @@ let defaultConfig = {
   enableAds: "off",
   hideExtraLetters: false,
   strictSpace: false,
+  minAcc: "off",
+  minAccCustom: 90,
+  showLiveAcc: false,
+  monkey: false,
 };
 
 let cookieConfig = null;
@@ -87,12 +91,15 @@ async function saveConfigToCookie(noDbCheck = false) {
   if (!dbConfigLoaded && !noDbCheck) {
     configChangedBeforeDb = true;
   }
-  let d = new Date();
-  d.setFullYear(d.getFullYear() + 1);
-  $.cookie("config", JSON.stringify(config), {
-    expires: d,
-    path: "/",
-  });
+  // let d = new Date();
+  // d.setFullYear(d.getFullYear() + 1);
+  // $.cookie("config", JSON.stringify(config), {
+  //   expires: d,
+  //   path: "/",
+  // });
+  let save = config;
+  delete save.resultFilters;
+  Misc.setCookie("config", JSON.stringify(save), 365);
   restartCount = 0;
   if (!noDbCheck) await saveConfigToDB();
 }
@@ -100,19 +107,17 @@ async function saveConfigToCookie(noDbCheck = false) {
 async function saveConfigToDB() {
   if (firebase.auth().currentUser !== null) {
     accountIconLoading(true);
-    saveConfig({ uid: firebase.auth().currentUser.uid, obj: config }).then(
-      (d) => {
-        accountIconLoading(false);
-        if (d.data.returnCode === 1) {
-        } else {
-          showNotification(
-            `Error saving config to DB! ${d.data.message}`,
-            4000
-          );
-        }
-        return;
+    CloudFunctions.saveConfig({
+      uid: firebase.auth().currentUser.uid,
+      obj: config,
+    }).then((d) => {
+      accountIconLoading(false);
+      if (d.data.returnCode === 1) {
+      } else {
+        Notifications.add(`Error saving config to DB! ${d.data.message}`, 4000);
       }
-    );
+      return;
+    });
   }
 }
 
@@ -120,34 +125,20 @@ function resetConfig() {
   config = {
     ...defaultConfig,
   };
-  applyConfig();
+  applyConfig(config);
   saveConfigToCookie();
-}
-
-function saveActiveTagsToCookie() {
-  let tags = [];
-
-  try {
-    dbSnapshot.tags.forEach((tag) => {
-      if (tag.active === true) {
-        tags.push(tag.id);
-      }
-    });
-    let d = new Date();
-    d.setFullYear(d.getFullYear() + 1);
-    $.cookie("activeTags", null);
-    $.cookie("activeTags", JSON.stringify(tags), {
-      expires: d,
-      path: "/",
-    });
-  } catch (e) {}
 }
 
 function loadConfigFromCookie() {
   console.log("loading cookie config");
-  let newConfig = $.cookie("config");
-  if (newConfig !== undefined) {
-    newConfig = JSON.parse(newConfig);
+  // let newConfig = $.cookie("config");
+  let newConfig = Misc.getCookie("config");
+  if (newConfig !== undefined && newConfig !== "") {
+    try {
+      newConfig = JSON.parse(newConfig);
+    } catch (e) {
+      newConfig = {};
+    }
     applyConfig(newConfig);
     console.log("applying cookie config");
     cookieConfig = newConfig;
@@ -157,138 +148,35 @@ function loadConfigFromCookie() {
   restartTest(false, true);
 }
 
-function applyConfig(configObj) {
-  Object.keys(defaultConfig).forEach((configKey) => {
-    if (configObj[configKey] === undefined) {
-      configObj[configKey] = defaultConfig[configKey];
-    }
-  });
-  if (configObj && configObj != null && configObj != "null") {
-    setTheme(configObj.theme, true);
-    setCustomTheme(configObj.customTheme, true);
-    setCustomThemeColors(configObj.customThemeColors, true);
-    setQuickTabMode(configObj.quickTab, true);
-    setKeyTips(configObj.showKeyTips, true);
-    setTimeConfig(configObj.time, true);
-    setQuoteLength(configObj.quoteLength, true);
-    setWordCount(configObj.words, true);
-    setLanguage(configObj.language, true);
-    setCapsLockBackspace(configObj.capsLockBackspace, true);
-    setSavedLayout(configObj.savedLayout, true);
-    setFontSize(configObj.fontSize, true);
-    setFreedomMode(configObj.freedomMode, true);
-    setCaretStyle(configObj.caretStyle, true);
-    setPaceCaretStyle(configObj.paceCaretStyle, true);
-    setDifficulty(configObj.difficulty, true);
-    setBlindMode(configObj.blindMode, true);
-    setQuickEnd(configObj.quickEnd, true);
-    setFlipTestColors(configObj.flipTestColors, true);
-    setColorfulMode(configObj.colorfulMode, true);
-    setConfidenceMode(configObj.confidenceMode, true);
-    setIndicateTypos(configObj.indicateTypos, true);
-    setTimerStyle(configObj.timerStyle, true);
-    setTimerColor(configObj.timerColor, true);
-    setTimerOpacity(configObj.timerOpacity, true);
-    setKeymapMode(configObj.keymapMode, true);
-    setKeymapStyle(configObj.keymapStyle, true);
-    setKeymapLayout(configObj.keymapLayout, true);
-    setFontFamily(configObj.fontFamily, true);
-    setSmoothCaret(configObj.smoothCaret, true);
-    setSmoothLineScroll(configObj.smoothLineScroll, true);
-    setShowLiveWpm(configObj.showLiveWpm, true);
-    setShowTimerProgress(configObj.showTimerProgress, true);
-    setAlwaysShowDecimalPlaces(configObj.alwaysShowDecimalPlaces, true);
-    setAlwaysShowWordsHistory(configObj.alwaysShowWordsHistory, true);
-    setSingleListCommandLine(configObj.singleListCommandLine, true);
-    setPlaySoundOnError(configObj.playSoundOnError, true);
-    setPlaySoundOnClick(configObj.playSoundOnClick, true);
-    setStopOnError(configObj.stopOnError, true);
-    setFavThemes(configObj.favThemes, true);
-    setRandomTheme(configObj.randomTheme, true);
-    setShowAllLines(configObj.showAllLines, true);
-    setSwapEscAndTab(configObj.swapEscAndTab, true);
-    setShowOutOfFocusWarning(configObj.showOutOfFocusWarning, true);
-    setPaceCaret(configObj.paceCaret, true);
-    setPaceCaretCustomSpeed(configObj.paceCaretCustomSpeed, true);
-    setPageWidth(configObj.pageWidth, true);
-    setChartAccuracy(configObj.chartAccuracy, true);
-    setChartStyle(configObj.chartStyle, true);
-    setMinWpm(configObj.minWpm, true);
-    setMinWpmCustomSpeed(configObj.minWpmCustomSpeed, true);
-    setNumbers(configObj.numbers, true);
-    setPunctuation(configObj.punctuation, true);
-    setHighlightMode(configObj.highlightMode, true);
-    setAlwaysShowCPM(configObj.alwaysShowCPM, true);
-    setHideExtraLetters(configObj.hideExtraLetters, true);
-    setStartGraphsAtZero(configObj.startGraphsAtZero, true);
-    setStrictSpace(configObj.strictSpace, true);
-    setMode(configObj.mode, true);
+function saveActiveTagsToCookie() {
+  let tags = [];
 
-    try {
-      setEnableAds(configObj.enableAds, true);
-      if (config.enableAds === "on") {
-        $("#ad1").removeClass("hidden");
-        $("#ad1")
-          .html(`<script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js"></script>
-        <!-- Horizontal Ad -->
-        <ins class="adsbygoogle"
-             style="display:inline-block;width:850px;height:90px"
-             data-ad-client="ca-pub-7261919841327810"
-             data-ad-slot="2225821478"></ins>`);
-        const adsbygoogle = window.adsbygoogle || [];
-        adsbygoogle.push({});
-      } else if (config.enableAds === "max") {
-        $("#ad1").removeClass("hidden");
-        $("#ad2").removeClass("hidden");
-        $("#ad3").removeClass("hidden");
-        $("#ad1").html(`<script
-        async
-        src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js"
-      ></script>
-      <!-- Horizontal Ad -->
-      <ins
-        class="adsbygoogle"
-        style="display: inline-block; width: 1000px; height: 90px"
-        data-ad-client="ca-pub-7261919841327810"
-        data-ad-slot="2225821478"
-      ></ins>`);
-        $("#ad2")
-          .html(`<script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js"></script>
-        <!-- Vertical 1 -->
-        <ins class="adsbygoogle"
-             style="display:inline-block;width:160px;height:600px"
-             data-ad-client="ca-pub-7261919841327810"
-             data-ad-slot="6376286644"></ins>`);
-        $("#ad3")
-          .html(`<script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js"></script>
-        <!-- Vertical 2 -->
-        <ins class="adsbygoogle"
-             style="display:inline-block;width:160px;height:600px"
-             data-ad-client="ca-pub-7261919841327810"
-             data-ad-slot="1159796595"></ins>`);
-        const adsbygoogle = window.adsbygoogle || [];
-        adsbygoogle.push({});
-        adsbygoogle.push({});
-        adsbygoogle.push({});
-      } else {
-        $("#ad1").remove();
-        $("#ad2").remove();
-        $("#ad3").remove();
+  try {
+    db_getSnapshot().tags.forEach((tag) => {
+      if (tag.active === true) {
+        tags.push(tag.id);
       }
-    } catch (e) {
-      console.log("error initialising ads " + e.message);
-      $("#ad1").remove();
-      $("#ad2").remove();
-      $("#ad3").remove();
-    }
-  }
-  updateTestModesNotice();
+    });
+    // let d = new Date();
+    // d.setFullYear(d.getFullYear() + 1);
+    // $.cookie("activeTags", null);
+    // $.cookie("activeTags", JSON.stringify(tags), {
+    //   expires: d,
+    //   path: "/",
+    // });
+    Misc.setCookie("activeTags", JSON.stringify(tags), 365);
+  } catch (e) {}
 }
 
 function loadActiveTagsFromCookie() {
-  let newTags = $.cookie("activeTags");
-  if (newTags !== undefined) {
-    newTags = JSON.parse(newTags);
+  // let newTags = $.cookie("activeTags");
+  let newTags = Misc.getCookie("activeTags");
+  if (newTags !== undefined && newTags !== "") {
+    try {
+      newTags = JSON.parse(newTags);
+    } catch (e) {
+      newTags = {};
+    }
     newTags.forEach((ntag) => {
       toggleTag(ntag, true);
     });
@@ -511,6 +399,10 @@ function setPaceCaret(val, nosave) {
   if (val == undefined) {
     val = "off";
   }
+  if (config.mode === "zen" && val != "off") {
+    Notifications.add(`Can't use pace caret with zen mode.`, 0);
+    val = "off";
+  }
   config.paceCaret = val;
   updateTestModesNotice();
   initPaceCaret(nosave);
@@ -540,6 +432,24 @@ function setMinWpmCustomSpeed(val, nosave) {
     val = 100;
   }
   config.minWpmCustomSpeed = val;
+  if (!nosave) saveConfigToCookie();
+}
+
+//min acc
+function setMinAcc(min, nosave) {
+  if (min == undefined) {
+    min = "off";
+  }
+  config.minAcc = min;
+  updateTestModesNotice();
+  if (!nosave) saveConfigToCookie();
+}
+
+function setMinAccCustom(val, nosave) {
+  if (val == undefined || Number.isNaN(parseInt(val))) {
+    val = 90;
+  }
+  config.minAccCustom = val;
   if (!nosave) saveConfigToCookie();
 }
 
@@ -754,7 +664,27 @@ function toggleShowLiveWpm() {
   saveConfigToCookie();
 }
 
+function setShowLiveAcc(live, nosave) {
+  if (live == null || live == undefined) {
+    live = false;
+  }
+  config.showLiveAcc = live;
+  if (!nosave) saveConfigToCookie();
+}
+
+function toggleShowLiveAcc() {
+  config.showLiveAcc = !config.showLiveAcc;
+  saveConfigToCookie();
+}
+
 function setHighlightMode(mode, nosave) {
+  if (
+    mode === "word" &&
+    (activeFunBox === "nospace" || activeFunBox === "read_ahead")
+  ) {
+    Notifications.add("Can't use word highlight with this funbox", 0);
+    return;
+  }
   if (mode == null || mode == undefined) {
     mode = "letter";
   }
@@ -797,9 +727,9 @@ function setTimerColor(color, nosave) {
   $("#timerNumber").removeClass("timerText");
   $("#timerNumber").removeClass("timerMain");
 
-  $("#liveWpm").removeClass("timerSub");
-  $("#liveWpm").removeClass("timerText");
-  $("#liveWpm").removeClass("timerMain");
+  $("#largeLiveWpmAndAcc").removeClass("timerSub");
+  $("#largeLiveWpmAndAcc").removeClass("timerText");
+  $("#largeLiveWpmAndAcc").removeClass("timerMain");
 
   $("#miniTimerAndLiveWpm").removeClass("timerSub");
   $("#miniTimerAndLiveWpm").removeClass("timerText");
@@ -808,17 +738,17 @@ function setTimerColor(color, nosave) {
   if (color === "main") {
     $("#timer").addClass("timerMain");
     $("#timerNumber").addClass("timerMain");
-    $("#liveWpm").addClass("timerMain");
+    $("#largeLiveWpmAndAcc").addClass("timerMain");
     $("#miniTimerAndLiveWpm").addClass("timerMain");
   } else if (color === "sub") {
     $("#timer").addClass("timerSub");
     $("#timerNumber").addClass("timerSub");
-    $("#liveWpm").addClass("timerSub");
+    $("#largeLiveWpmAndAcc").addClass("timerSub");
     $("#miniTimerAndLiveWpm").addClass("timerSub");
   } else if (color === "text") {
     $("#timer").addClass("timerText");
     $("#timerNumber").addClass("timerText");
-    $("#liveWpm").addClass("timerText");
+    $("#largeLiveWpmAndAcc").addClass("timerText");
     $("#miniTimerAndLiveWpm").addClass("timerText");
   }
 
@@ -910,11 +840,21 @@ function setWordCount(wordCount, nosave) {
 function setSmoothCaret(mode, nosave) {
   config.smoothCaret = mode;
   if (!nosave) saveConfigToCookie();
+  if (mode) {
+    $("#caret").css("animation-name", "caretFlashSmooth");
+  } else {
+    $("#caret").css("animation-name", "caretFlashHard");
+  }
 }
 
 function toggleSmoothCaret() {
   config.smoothCaret = !config.smoothCaret;
   saveConfigToCookie();
+  if (config.smoothCaret) {
+    $("#caret").css("animation-name", "caretFlashSmooth");
+  } else {
+    $("#caret").css("animation-name", "caretFlashHard");
+  }
 }
 
 //startgraphsatzero
@@ -1082,6 +1022,66 @@ function setIndicateTypos(it, nosave) {
   if (!nosave) saveConfigToCookie();
 }
 
+function updateChartColors() {
+  hoverChart.options.scales.xAxes[0].ticks.minor.fontColor = themeColors.sub;
+  hoverChart.options.scales.xAxes[0].scaleLabel.fontColor = themeColors.sub;
+  hoverChart.options.scales.yAxes[0].ticks.minor.fontColor = themeColors.sub;
+  hoverChart.options.scales.yAxes[2].ticks.minor.fontColor = themeColors.sub;
+  hoverChart.options.scales.yAxes[0].scaleLabel.fontColor = themeColors.sub;
+  hoverChart.options.scales.yAxes[2].scaleLabel.fontColor = themeColors.sub;
+
+  hoverChart.data.datasets[0].borderColor = themeColors.main;
+  hoverChart.data.datasets[0].pointBackgroundColor = themeColors.main;
+  hoverChart.data.datasets[1].borderColor = themeColors.sub;
+  hoverChart.data.datasets[1].pointBackgroundColor = themeColors.sub;
+
+  hoverChart.options.annotation.annotations[0].borderColor = themeColors.sub;
+  hoverChart.options.annotation.annotations[0].label.backgroundColor =
+    themeColors.sub;
+  hoverChart.options.annotation.annotations[0].label.fontColor = themeColors.bg;
+
+  activityChart.options.legend.labels.fontColor = themeColors.sub;
+
+  activityChart.options.scales.xAxes[0].ticks.minor.fontColor = themeColors.sub;
+  activityChart.options.scales.yAxes[0].ticks.minor.fontColor = themeColors.sub;
+  activityChart.options.scales.yAxes[0].scaleLabel.fontColor = themeColors.sub;
+  activityChart.data.datasets[0].borderColor = themeColors.main;
+  activityChart.data.datasets[0].backgroundColor = themeColors.main;
+
+  activityChart.data.datasets[0].trendlineLinear.style = themeColors.sub;
+
+  activityChart.options.scales.yAxes[1].ticks.minor.fontColor = themeColors.sub;
+  activityChart.options.scales.yAxes[1].scaleLabel.fontColor = themeColors.sub;
+  activityChart.data.datasets[1].borderColor = themeColors.sub;
+
+  activityChart.options.legend.labels.fontColor = themeColors.sub;
+
+  resultHistoryChart.options.scales.xAxes[0].ticks.minor.fontColor =
+    themeColors.sub;
+  resultHistoryChart.options.scales.yAxes[0].ticks.minor.fontColor =
+    themeColors.sub;
+  resultHistoryChart.options.scales.yAxes[0].scaleLabel.fontColor =
+    themeColors.sub;
+  resultHistoryChart.options.scales.yAxes[1].ticks.minor.fontColor =
+    themeColors.sub;
+  resultHistoryChart.options.scales.yAxes[1].scaleLabel.fontColor =
+    themeColors.sub;
+  resultHistoryChart.data.datasets[0].borderColor = themeColors.main;
+  resultHistoryChart.data.datasets[1].borderColor = themeColors.sub;
+
+  resultHistoryChart.options.legend.labels.fontColor = themeColors.sub;
+  resultHistoryChart.data.datasets[0].trendlineLinear.style = themeColors.sub;
+  wpmOverTimeChart.data.datasets[0].borderColor = themeColors.main;
+  wpmOverTimeChart.data.datasets[0].pointBackgroundColor = themeColors.main;
+  wpmOverTimeChart.data.datasets[1].borderColor = themeColors.sub;
+  wpmOverTimeChart.data.datasets[1].pointBackgroundColor = themeColors.sub;
+
+  hoverChart.update();
+  wpmOverTimeChart.update();
+  resultHistoryChart.update();
+  activityChart.update();
+}
+
 function previewTheme(name, setIsPreviewingVar = true) {
   if (
     (testActive || resultVisible) &&
@@ -1091,6 +1091,7 @@ function previewTheme(name, setIsPreviewingVar = true) {
   if (resultVisible && (name === "nausea" || name === "round_round_baby"))
     return;
   isPreviewingTheme = setIsPreviewingVar;
+  clearCustomTheme();
   $("#currentTheme").attr("href", `themes/${name}.css`);
   setTimeout(() => {
     refreshThemeColorObject();
@@ -1121,7 +1122,8 @@ function setTheme(name, nosave) {
     console.log("Analytics unavailable");
   }
   setCustomTheme(false, true);
-  applyCustomThemeColors();
+  clearCustomTheme();
+  // applyCustomThemeColors();
   setTimeout(() => {
     $(".keymap-key").attr("style", "");
     refreshThemeColorObject();
@@ -1132,13 +1134,21 @@ function setTheme(name, nosave) {
 
 let randomTheme = null;
 function randomiseTheme() {
-  var randomList = themesList.map((t) => {
-    return t.name;
+  // var randomList = Misc.getThemesList().map((t) => {
+  //   return t.name;
+  // });
+  var randomList;
+  Misc.getThemesList().then((themes) => {
+    randomList = themes.map((t) => {
+      return t.name;
+    });
+
+    if (config.randomTheme === "fav" && config.favThemes.length > 0)
+      randomList = config.favThemes;
+    randomTheme = randomList[Math.floor(Math.random() * randomList.length)];
+    setTheme(randomTheme, true);
+    Notifications.add(randomTheme.replace(/_/g, " "), 0);
   });
-  if (config.randomTheme === "fav" && config.favThemes.length > 0)
-    randomList = config.favThemes;
-  randomTheme = randomList[Math.floor(Math.random() * randomList.length)];
-  setTheme(randomTheme, true);
 }
 
 function setRandomTheme(val, nosave) {
@@ -1170,22 +1180,26 @@ function applyCustomThemeColors() {
 
   if (config.customTheme === true) {
     $(".current-theme").text("custom");
-    previewTheme("serika_dark");
+    previewTheme("serika_dark", false);
     colorVars.forEach((e, index) => {
       document.documentElement.style.setProperty(e, array[index]);
     });
   } else {
     $(".current-theme").text(config.theme.replace("_", " "));
-    previewTheme(config.theme);
-    colorVars.forEach((e) => {
-      document.documentElement.style.setProperty(e, "");
-    });
+    previewTheme(config.theme, false);
+    clearCustomTheme();
   }
   setTimeout(() => {
     refreshThemeColorObject();
     updateFavicon(32, 14);
     $(".keymap-key").attr("style", "");
   }, 500);
+}
+
+function clearCustomTheme() {
+  colorVars.forEach((e) => {
+    document.documentElement.style.setProperty(e, "");
+  });
 }
 
 function togglePresetCustomTheme() {
@@ -1259,6 +1273,29 @@ function setLanguage(language, nosave) {
     });
   } catch (e) {
     console.log("Analytics unavailable");
+  }
+  if (!nosave) saveConfigToCookie();
+}
+
+function toggleMonkey(nosave) {
+  config.monkey = !config.monkey;
+  if (config.monkey) {
+    $("#monkey").removeClass("hidden");
+  } else {
+    $("#monkey").addClass("hidden");
+  }
+  if (!nosave) saveConfigToCookie();
+}
+
+function setMonkey(monkey, nosave) {
+  if (monkey === null || monkey === undefined) {
+    monkey = false;
+  }
+  config.monkey = monkey;
+  if (config.monkey) {
+    $("#monkey").removeClass("hidden");
+  } else {
+    $("#monkey").addClass("hidden");
   }
   if (!nosave) saveConfigToCookie();
 }
@@ -1466,4 +1503,258 @@ function setFontSize(fontSize, nosave) {
     $("#miniTimerAndLiveWpm").addClass("size3");
   }
   if (!nosave) saveConfigToCookie();
+}
+
+function applyConfig(configObj) {
+  if (configObj == null || configObj == undefined) {
+    Notifications.add("Could not apply config", -1, 3);
+    return;
+  }
+  Object.keys(defaultConfig).forEach((configKey) => {
+    if (configObj[configKey] === undefined) {
+      configObj[configKey] = defaultConfig[configKey];
+    }
+  });
+  if (configObj && configObj != null && configObj != "null") {
+    setTheme(configObj.theme, true);
+    setCustomTheme(configObj.customTheme, true);
+    setCustomThemeColors(configObj.customThemeColors, true);
+    setQuickTabMode(configObj.quickTab, true);
+    setKeyTips(configObj.showKeyTips, true);
+    setTimeConfig(configObj.time, true);
+    setQuoteLength(configObj.quoteLength, true);
+    setWordCount(configObj.words, true);
+    setLanguage(configObj.language, true);
+    setCapsLockBackspace(configObj.capsLockBackspace, true);
+    setSavedLayout(configObj.savedLayout, true);
+    setFontSize(configObj.fontSize, true);
+    setFreedomMode(configObj.freedomMode, true);
+    setCaretStyle(configObj.caretStyle, true);
+    setPaceCaretStyle(configObj.paceCaretStyle, true);
+    setDifficulty(configObj.difficulty, true);
+    setBlindMode(configObj.blindMode, true);
+    setQuickEnd(configObj.quickEnd, true);
+    setFlipTestColors(configObj.flipTestColors, true);
+    setColorfulMode(configObj.colorfulMode, true);
+    setConfidenceMode(configObj.confidenceMode, true);
+    setIndicateTypos(configObj.indicateTypos, true);
+    setTimerStyle(configObj.timerStyle, true);
+    setTimerColor(configObj.timerColor, true);
+    setTimerOpacity(configObj.timerOpacity, true);
+    setKeymapMode(configObj.keymapMode, true);
+    setKeymapStyle(configObj.keymapStyle, true);
+    setKeymapLayout(configObj.keymapLayout, true);
+    setFontFamily(configObj.fontFamily, true);
+    setSmoothCaret(configObj.smoothCaret, true);
+    setSmoothLineScroll(configObj.smoothLineScroll, true);
+    setShowLiveWpm(configObj.showLiveWpm, true);
+    setShowLiveAcc(configObj.showLiveAcc, true);
+    setShowTimerProgress(configObj.showTimerProgress, true);
+    setAlwaysShowDecimalPlaces(configObj.alwaysShowDecimalPlaces, true);
+    setAlwaysShowWordsHistory(configObj.alwaysShowWordsHistory, true);
+    setSingleListCommandLine(configObj.singleListCommandLine, true);
+    setPlaySoundOnError(configObj.playSoundOnError, true);
+    setPlaySoundOnClick(configObj.playSoundOnClick, true);
+    setStopOnError(configObj.stopOnError, true);
+    setFavThemes(configObj.favThemes, true);
+    setRandomTheme(configObj.randomTheme, true);
+    setShowAllLines(configObj.showAllLines, true);
+    setSwapEscAndTab(configObj.swapEscAndTab, true);
+    setShowOutOfFocusWarning(configObj.showOutOfFocusWarning, true);
+    setPaceCaret(configObj.paceCaret, true);
+    setPaceCaretCustomSpeed(configObj.paceCaretCustomSpeed, true);
+    setPageWidth(configObj.pageWidth, true);
+    setChartAccuracy(configObj.chartAccuracy, true);
+    setChartStyle(configObj.chartStyle, true);
+    setMinWpm(configObj.minWpm, true);
+    setMinWpmCustomSpeed(configObj.minWpmCustomSpeed, true);
+    setMinAcc(configObj.minAcc, true);
+    setMinAccCustom(configObj.minAccCustom, true);
+    setNumbers(configObj.numbers, true);
+    setPunctuation(configObj.punctuation, true);
+    setHighlightMode(configObj.highlightMode, true);
+    setAlwaysShowCPM(configObj.alwaysShowCPM, true);
+    setHideExtraLetters(configObj.hideExtraLetters, true);
+    setStartGraphsAtZero(configObj.startGraphsAtZero, true);
+    setStrictSpace(configObj.strictSpace, true);
+    setMode(configObj.mode, true);
+    setMonkey(configObj.monkey, true);
+
+    try {
+      setEnableAds(configObj.enableAds, true);
+      let addemo = false;
+      if (
+        firebase.app().options.projectId === "monkey-type-dev-67af4" ||
+        window.location.hostname === "localhost"
+      ) {
+        addemo = true;
+      }
+
+      if (config.enableAds === "max" || config.enableAds === "on") {
+        if (config.enableAds === "max") {
+          window["nitroAds"].createAd("nitropay_ad_left", {
+            refreshLimit: 10,
+            refreshTime: 30,
+            renderVisibleOnly: false,
+            refreshVisibleOnly: true,
+            sizes: [["160", "600"]],
+            report: {
+              enabled: true,
+              wording: "Report Ad",
+              position: "bottom-right",
+            },
+            mediaQuery: "(min-width: 1330px)",
+            demo: addemo,
+          });
+          $("#nitropay_ad_left").removeClass("hidden");
+
+          window["nitroAds"].createAd("nitropay_ad_right", {
+            refreshLimit: 10,
+            refreshTime: 30,
+            renderVisibleOnly: false,
+            refreshVisibleOnly: true,
+            sizes: [["160", "600"]],
+            report: {
+              enabled: true,
+              wording: "Report Ad",
+              position: "bottom-right",
+            },
+            mediaQuery: "(min-width: 1330px)",
+            demo: addemo,
+          });
+          $("#nitropay_ad_right").removeClass("hidden");
+        } else {
+          $("#nitropay_ad_left").remove();
+          $("#nitropay_ad_right").remove();
+        }
+
+        window["nitroAds"].createAd("nitropay_ad_footer", {
+          refreshLimit: 10,
+          refreshTime: 30,
+          renderVisibleOnly: false,
+          refreshVisibleOnly: true,
+          sizes: [["970", "90"]],
+          report: {
+            enabled: true,
+            wording: "Report Ad",
+            position: "bottom-right",
+          },
+          mediaQuery: "(min-width: 1025px)",
+          demo: addemo,
+        });
+        $("#nitropay_ad_footer").removeClass("hidden");
+
+        window["nitroAds"].createAd("nitropay_ad_footer2", {
+          refreshLimit: 10,
+          refreshTime: 30,
+          renderVisibleOnly: false,
+          refreshVisibleOnly: true,
+          sizes: [["728", "90"]],
+          report: {
+            enabled: true,
+            wording: "Report Ad",
+            position: "bottom-right",
+          },
+          mediaQuery: "(min-width: 730px) and (max-width: 1024px)",
+          demo: addemo,
+        });
+        $("#nitropay_ad_footer2").removeClass("hidden");
+
+        window["nitroAds"].createAd("nitropay_ad_footer3", {
+          refreshLimit: 10,
+          refreshTime: 30,
+          renderVisibleOnly: false,
+          refreshVisibleOnly: true,
+          sizes: [["320", "50"]],
+          report: {
+            enabled: true,
+            wording: "Report Ad",
+            position: "bottom-right",
+          },
+          mediaQuery: "(max-width: 730px)",
+          demo: addemo,
+        });
+        $("#nitropay_ad_footer3").removeClass("hidden");
+
+        window["nitroAds"].createAd("nitropay_ad_about", {
+          refreshLimit: 10,
+          refreshTime: 30,
+          renderVisibleOnly: false,
+          refreshVisibleOnly: true,
+          report: {
+            enabled: true,
+            wording: "Report Ad",
+            position: "bottom-right",
+          },
+          demo: addemo,
+        });
+        $("#nitropay_ad_about").removeClass("hidden");
+
+        window["nitroAds"].createAd("nitropay_ad_settings1", {
+          refreshLimit: 10,
+          refreshTime: 30,
+          renderVisibleOnly: false,
+          refreshVisibleOnly: true,
+          report: {
+            enabled: true,
+            wording: "Report Ad",
+            position: "bottom-right",
+          },
+          demo: addemo,
+        });
+        $("#nitropay_ad_settings1").removeClass("hidden");
+
+        window["nitroAds"].createAd("nitropay_ad_settings2", {
+          refreshLimit: 10,
+          refreshTime: 30,
+          renderVisibleOnly: false,
+          refreshVisibleOnly: true,
+          report: {
+            enabled: true,
+            wording: "Report Ad",
+            position: "bottom-right",
+          },
+          demo: addemo,
+        });
+        $("#nitropay_ad_settings2").removeClass("hidden");
+
+        window["nitroAds"].createAd("nitropay_ad_account", {
+          refreshLimit: 10,
+          refreshTime: 30,
+          renderVisibleOnly: false,
+          refreshVisibleOnly: true,
+          report: {
+            enabled: true,
+            wording: "Report Ad",
+            position: "bottom-right",
+          },
+          demo: addemo,
+        });
+        $("#nitropay_ad_account").removeClass("hidden");
+      } else {
+        $("#nitropay_ad_left").remove();
+        $("#nitropay_ad_right").remove();
+        $("#nitropay_ad_footer").remove();
+        $("#nitropay_ad_footer2").remove();
+        $("#nitropay_ad_footer3").remove();
+        $("#nitropay_ad_settings1").remove();
+        $("#nitropay_ad_settings2").remove();
+        $("#nitropay_ad_account").remove();
+        $("#nitropay_ad_about").remove();
+      }
+    } catch (e) {
+      Notifications.add("Error initialising ads: " + e.message);
+      console.log("error initialising ads " + e.message);
+      $("#nitropay_ad_left").remove();
+      $("#nitropay_ad_right").remove();
+      $("#nitropay_ad_footer").remove();
+      $("#nitropay_ad_footer2").remove();
+      $("#nitropay_ad_footer3").remove();
+      $("#nitropay_ad_settings1").remove();
+      $("#nitropay_ad_settings2").remove();
+      $("#nitropay_ad_account").remove();
+      $("#nitropay_ad_about").remove();
+    }
+  }
+  updateTestModesNotice();
 }

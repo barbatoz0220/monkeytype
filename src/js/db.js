@@ -1,16 +1,32 @@
+import { loadTags } from "./result-filters";
+
 const db = firebase.firestore();
 db.settings({ experimentalForceLongPolling: true });
 
 let dbSnapshot = null;
 
-async function db_getUserSnapshot() {
+export function db_updateName(uid, name) {
+  db.collection(`users`).doc(uid).set({ name: name }, { merge: true });
+}
+
+export function db_getSnapshot() {
+  return dbSnapshot;
+}
+
+export function db_setSnapshot(newSnapshot) {
+  dbSnapshot = newSnapshot;
+}
+
+export async function db_getUserSnapshot() {
   let user = firebase.auth().currentUser;
   if (user == null) return false;
   let snap = {
     results: undefined,
     personalBests: {},
+    name: undefined,
     tags: [],
     favouriteThemes: [],
+    refactored: false,
     lbMemory: {
       time15: {
         global: null,
@@ -21,6 +37,11 @@ async function db_getUserSnapshot() {
         daily: null,
       },
     },
+    globalStats: {
+      time: 0,
+      started: 0,
+      completed: 0,
+    },
   };
   try {
     await db
@@ -30,7 +51,19 @@ async function db_getUserSnapshot() {
         data.docs.forEach((doc) => {
           let tag = doc.data();
           tag.id = doc.id;
+          if (tag.personalBests === undefined) {
+            tag.personalBests = {};
+          }
           snap.tags.push(tag);
+        });
+        snap.tags = snap.tags.sort((a, b) => {
+          if (a.name > b.name) {
+            return 1;
+          } else if (a.name < b.name) {
+            return -1;
+          } else {
+            return 0;
+          }
         });
       })
       .catch((e) => {
@@ -46,20 +79,27 @@ async function db_getUserSnapshot() {
         if (data.personalBests !== undefined) {
           snap.personalBests = data.personalBests;
         }
+        snap.name = data.name;
         snap.discordId = data.discordId;
         snap.pairingCode =
           data.discordPairingCode == null ? undefined : data.discordPairingCode;
         snap.config = data.config;
         snap.favouriteThemes =
           data.favouriteThemes === undefined ? [] : data.favouriteThemes;
+        snap.refactored = data.refactored === true ? true : false;
         snap.globalStats = {
           time: data.timeTyping,
           started: data.startedTests,
           completed: data.completedTests,
         };
-        if (data.lbMemory !== undefined) {
-          snap.lbMemory = data.lbMemory;
-        }
+        try {
+          if (data.lbMemory.time15 !== undefined) {
+            snap.lbMemory.time15 = data.lbMemory.time15;
+          }
+          if (data.lbMemory.time60 !== undefined) {
+            snap.lbMemory.time60 = data.lbMemory.time60;
+          }
+        } catch {}
       })
       .catch((e) => {
         throw e;
@@ -68,10 +108,11 @@ async function db_getUserSnapshot() {
   } catch (e) {
     console.error(e);
   }
+  loadTags(dbSnapshot.tags);
   return dbSnapshot;
 }
 
-async function db_getUserResults() {
+export async function db_getUserResults() {
   let user = firebase.auth().currentUser;
   if (user == null) return false;
   if (dbSnapshot === null) return false;
@@ -86,9 +127,18 @@ async function db_getUserResults() {
         .get()
         .then((data) => {
           dbSnapshot.results = [];
-          data.docs.forEach((doc, index) => {
+          data.docs.forEach((doc) => {
             let result = doc.data();
             result.id = doc.id;
+
+            if (result.bailedOut === undefined) result.bailedOut = false;
+            if (result.blindMode === undefined) result.blindMode = false;
+            if (result.difficulty === undefined) result.difficulty = "normal";
+            if (result.funbox === undefined) result.funbox = "none";
+            if (result.language === undefined) result.language = "english";
+            if (result.numbers === undefined) result.numbers = false;
+            if (result.punctuation === undefined) result.punctuation = false;
+
             dbSnapshot.results.push(result);
           });
           return true;
@@ -103,7 +153,7 @@ async function db_getUserResults() {
   }
 }
 
-async function db_getUserHighestWpm(
+export async function db_getUserHighestWpm(
   mode,
   mode2,
   punctuation,
@@ -137,7 +187,55 @@ async function db_getUserHighestWpm(
   return retval;
 }
 
-async function db_getLocalPB(mode, mode2, punctuation, language, difficulty) {
+export async function db_getUserAverageWpm10(
+  mode,
+  mode2,
+  punctuation,
+  language,
+  difficulty
+) {
+  function cont() {
+    let wpmSum = 0;
+    let count = 0;
+    let i = 0;
+    // You have to use every so you can break out of the loop
+    dbSnapshot.results.every((result) => {
+      if (
+        result.mode == mode &&
+        result.mode2 == mode2 &&
+        result.punctuation == punctuation &&
+        result.language == language &&
+        result.difficulty == difficulty
+      ) {
+        wpmSum += result.wpm;
+        count++;
+        if (count >= 10) {
+          return false;
+        }
+      }
+      return true;
+    });
+    return Math.round(wpmSum / count);
+  }
+
+  let retval = 0;
+
+  if (dbSnapshot == null) return retval;
+  var dbSnapshotValid = await db_getUserResults();
+  if (dbSnapshotValid === false) {
+    return retval;
+  }
+  retval = cont();
+  return retval;
+}
+
+export async function db_getLocalPB(
+  mode,
+  mode2,
+  punctuation,
+  language,
+  difficulty
+) {
   function cont() {
     let ret = 0;
     try {
@@ -158,13 +256,14 @@ async function db_getLocalPB(mode, mode2, punctuation, language, difficulty) {
 
   let retval;
   if (dbSnapshot == null) {
+    retval = 0;
   } else {
     retval = cont();
   }
   return retval;
 }
 
-async function db_saveLocalPB(
+export async function db_saveLocalPB(
   mode,
   mode2,
   punctuation,
@@ -175,6 +274,7 @@ async function db_saveLocalPB(
   raw,
   consistency
 ) {
+  if (mode == "quote") return;
   function cont() {
     try {
       let found = false;
@@ -226,8 +326,148 @@ async function db_saveLocalPB(
     }
   }
 
-  if (dbSnapshot == null) {
-  } else {
+  if (dbSnapshot != null) {
     cont();
   }
 }
+
+export async function db_getLocalTagPB(
+  tagId,
+  mode,
+  mode2,
+  punctuation,
+  language,
+  difficulty
+) {
+  function cont() {
+    let ret = 0;
+    let filteredtag = dbSnapshot.tags.filter((t) => t.id === tagId)[0];
+    try {
+      filteredtag.personalBests[mode][mode2].forEach((pb) => {
+        if (
+          pb.punctuation == punctuation &&
+          pb.difficulty == difficulty &&
+          pb.language == language
+        ) {
+          ret = pb.wpm;
+        }
+      });
+      return ret;
+    } catch (e) {
+      return ret;
+    }
+  }
+
+  let retval;
+  if (dbSnapshot == null) {
+    retval = 0;
+  } else {
+    retval = cont();
+  }
+  return retval;
+}
+
+export async function db_saveLocalTagPB(
+  tagId,
+  mode,
+  mode2,
+  punctuation,
+  language,
+  difficulty,
+  wpm,
+  acc,
+  raw,
+  consistency
+) {
+  if (mode == "quote") return;
+  function cont() {
+    let filteredtag = dbSnapshot.tags.filter((t) => t.id === tagId)[0];
+    try {
+      let found = false;
+      if (filteredtag.personalBests[mode][mode2] === undefined) {
+        filteredtag.personalBests[mode][mode2] = [];
+      }
+      filteredtag.personalBests[mode][mode2].forEach((pb) => {
+        if (
+          pb.punctuation == punctuation &&
+          pb.difficulty == difficulty &&
+          pb.language == language
+        ) {
+          found = true;
+          pb.wpm = wpm;
+          pb.acc = acc;
+          pb.raw = raw;
+          pb.timestamp = Date.now();
+          pb.consistency = consistency;
+        }
+      });
+      if (!found) {
+        //nothing found
+        filteredtag.personalBests[mode][mode2].push({
+          language: language,
+          difficulty: difficulty,
+          punctuation: punctuation,
+          wpm: wpm,
+          acc: acc,
+          raw: raw,
+          timestamp: Date.now(),
+          consistency: consistency,
+        });
+      }
+    } catch (e) {
+      //that mode or mode2 is not found
+      filteredtag.personalBests[mode] = {};
+      filteredtag.personalBests[mode][mode2] = [
+        {
+          language: language,
+          difficulty: difficulty,
+          punctuation: punctuation,
+          wpm: wpm,
+          acc: acc,
+          raw: raw,
+          timestamp: Date.now(),
+          consistency: consistency,
+        },
+      ];
+    }
+  }
+
+  if (dbSnapshot != null) {
+    cont();
+  }
+}
+
+// export async function db_getLocalTagPB(tagId) {
+//   function cont() {
+//     let ret = 0;
+//     try {
+//       ret = dbSnapshot.tags.filter((t) => t.id === tagId)[0].pb;
+//       if (ret == undefined) {
+//         ret = 0;
+//       }
+//       return ret;
+//     } catch (e) {
+//       return ret;
+//     }
+//   }
+
+//   let retval;
+//   if (dbSnapshot != null) {
+//     retval = cont();
+//   }
+//   return retval;
+// }
+
+// export async function db_saveLocalTagPB(tagId, wpm) {
+//   function cont() {
+//     dbSnapshot.tags.forEach((tag) => {
+//       if (tag.id === tagId) {
+//         tag.pb = wpm;
+//       }
+//     });
+//   }
+
+//   if (dbSnapshot != null) {
+//     cont();
+//   }
+// }

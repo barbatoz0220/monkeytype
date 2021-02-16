@@ -176,7 +176,7 @@ const layouts = {
     prog_dvorak: {
         keymapShowTopRow: true,
         keys: [
-            "$~", "[%", "[7", "{5", "}3", "(1", "=9", "*0", ")2", "+4", "]6", "!8", "#`",
+            "$~", "&%", "[7", "{5", "}3", "(1", "=9", "*0", ")2", "+4", "]6", "!8", "#`",
             ";:", ",<", ".>", "pP", "yY", "fF", "gG", "cC", "rR", "lL", "/?", "@^", "\\|",
             "aA", "oO", "eE", "uU", "iI", "dD", "hH", "tT", "nN", "sS", "-_",
             "\\|", "'\"", "qQ", "jJ", "kK", "xX", "bB", "mM", "wW", "vV", "zZ",
@@ -214,6 +214,17 @@ const layouts = {
             " "
         ]
     },
+    bepo: {
+        keymapShowTopRow: false,
+        iso: true,
+        keys: [
+            "$#", "\"1", "«2", "»3", "(4", ")5", "@6", "+7", "-8", "/9", "*0", "=°", "%`",
+            "bB", "éÉ", "pP", "oO", "èÈ", "^!", "vV", "dD", "lL", "jJ", "zZ", "wW", "mM",
+            "aA", "uU", "iI", "eE", ",;", "cC", "tT", "sS", "rR", "nN", "mM",
+            "êÊ", "àÀ", "yY", "xX", ".:", "kK", "’?", "qQ", "gG", "hH", "fF",
+            "  "
+        ]
+    },
     alpha: {
         keymapShowTopRow: false,
         keys: [
@@ -224,4 +235,25 @@ const layouts = {
             " "
         ]
     },
+    handsdown_alt: {
+        keymapShowTopRow: false,
+        keys: [
+            "`~", "1!", "2@", "3#", "4$", "5%", "6^", "7&", "8*", "9(", "0)", "-_", "=+",
+            "wW", "gG", "hH", "mM", "kK", "qQ", "cC", "uU", "jJ", "'\"", "[{", "]}", "\\|",
+            "rR", "sS", "nN", "tT", "fF", "yY", "aA", "eE", "oO", "iI", ";:", 
+            "\\|", "xX", "bB", "lL", "dD", "vV", "zZ", "pP", ",<", ".>", "/?",
+            " "
+        ]
+    },
+    typehack: {
+        keymapShowTopRow: false,
+        keys: [
+            "^~", "1!", "2@", "3#", "4$", "5%", "6&", "7`", "8(", "9)", "0=", "*+", "\\|",
+            "jJ", "gG", "hH", "pP", "fF", "qQ", "vV", "oO", "uU", ";:", "/?", "[{", "]}",
+            "rR", "sS", "nN", "tT", "kK", "yY", "iI", "aA", "eE", "lL", "-_",
+            "\\|","zZ", "wW", "mM", "dD", "bB", "cC", ",<", "'\"", ".>", "xX",
+            " "
+        ],
+    },
 }
+export default layouts;

@@ -49,13 +49,13 @@ function updateLeaderboards() {
 
   showBackgroundLoader();
   Promise.all([
-    firebase.functions().httpsCallable("getLeaderboard")({
+    CloudFunctions.getLeaderboard({
       mode: boardinfo[0],
       mode2: boardinfo[1],
       type: "daily",
       uid: uid,
     }),
-    firebase.functions().httpsCallable("getLeaderboard")({
+    CloudFunctions.getLeaderboard({
       mode: boardinfo[0],
       mode2: boardinfo[1],
       type: "global",
@@ -217,7 +217,8 @@ function updateLeaderboards() {
       }
     })
     .catch((e) => {
-      showNotification("Something went wrong", 3000);
+      hideBackgroundLoader();
+      Notifications.add("Something went wrong: " + e.message, -1);
     });
 }
 
