@@ -49,13 +49,13 @@ function updateLeaderboards() {
 
   showBackgroundLoader();
   Promise.all([
-    firebase.functions().httpsCallable("getLeaderboard")({
+    CloudFunctions.getLeaderboard({
       mode: boardinfo[0],
       mode2: boardinfo[1],
       type: "daily",
       uid: uid,
     }),
-    firebase.functions().httpsCallable("getLeaderboard")({
+    CloudFunctions.getLeaderboard({
       mode: boardinfo[0],
       mode2: boardinfo[1],
       type: "global",
@@ -95,7 +95,7 @@ function updateLeaderboards() {
       $("#leaderboardsWrapper table.daily tfoot").html(`
       <tr>
         <td><br><br></td>
-        <td colspan="5" style="text-align:center;">Not qualified</>
+        <td colspan="4" style="text-align:center;">Not qualified</>
         <td><br><br></td>
       </tr>
       `);
@@ -112,11 +112,24 @@ function updateLeaderboards() {
             <tr>
             <td>${dindex + 1}</td>
             <td>You</td>
-            <td>${entry.wpm.toFixed(2)}</td>
-            <td>${entry.raw.toFixed(2)}</td>
-            <td>${entry.acc.toFixed(2)}%</td>
-            <td>${entry.mode} ${entry.mode2}</td>
-            <td>${moment(entry.timestamp).format("DD MMM YYYY<br>HH:mm")}</td>
+            <td class="alignRight">${entry.wpm.toFixed(
+              2
+            )}<br><div class="sub">${entry.acc.toFixed(2)}%</div></td>
+            <td class="alignRight">${entry.raw.toFixed(
+              2
+            )}<br><div class="sub">${
+              entry.consistency === "-"
+                ? "-"
+                : entry.consistency.toFixed(2) + "%"
+            }</div></td>
+            <td class="alignRight">${entry.mode}<br><div class="sub">${
+              entry.mode2
+            }</div></td>
+            <td class="alignRight">${moment(entry.timestamp).format(
+              "DD MMM YYYY"
+            )}<br><div class='sub'>${moment(entry.timestamp).format(
+              "HH:mm"
+            )}</div></td>
           </tr>
             `);
           }
@@ -126,11 +139,20 @@ function updateLeaderboards() {
             dindex === 0 ? '<i class="fas fa-fw fa-crown"></i>' : dindex + 1
           }</td>
           <td ${meClassString}>${entry.name}</td>
-          <td>${entry.wpm.toFixed(2)}</td>
-          <td>${entry.raw.toFixed(2)}</td>
-          <td>${entry.acc.toFixed(2)}%</td>
-          <td>${entry.mode} ${entry.mode2}</td>
-          <td>${moment(entry.timestamp).format("DD MMM YYYY<br>HH:mm")}</td>
+          <td class="alignRight">${entry.wpm.toFixed(
+            2
+          )}<br><div class="sub">${entry.acc.toFixed(2)}%</div></td>
+          <td class="alignRight">${entry.raw.toFixed(2)}<br><div class="sub">${
+            entry.consistency === "-" ? "-" : entry.consistency.toFixed(2) + "%"
+          }</div></td>
+          <td class="alignRight">${entry.mode}<br><div class="sub">${
+            entry.mode2
+          }</div></td>
+          <td class="alignRight">${moment(entry.timestamp).format(
+            "DD MMM YYYY"
+          )}<br><div class='sub'>${moment(entry.timestamp).format(
+            "HH:mm"
+          )}</div></td>
         </tr>
         `);
           dindex++;
@@ -144,11 +166,10 @@ function updateLeaderboards() {
           <tr>
                 <td>${i + 1}</td>
                 <td>-</td>
-                <td>-</td>
-                <td>-</td>
-                <td>-</td>
-                <td>-</td>
-                <td>-<br>-</td>
+                <td class="alignRight">-</td>
+                <td class="alignRight">-</td>
+                <td class="alignRight">-</td>
+                <td class="alignRight">-<br>-</td>
               </tr>
         `);
         }
@@ -157,7 +178,7 @@ function updateLeaderboards() {
       $("#leaderboardsWrapper table.global tfoot").html(`
       <tr>
       <td><br><br></td>
-      <td colspan="5" style="text-align:center;">Not qualified</>
+      <td colspan="4" style="text-align:center;">Not qualified</>
       <td><br><br></td>
       </tr>
       `);
@@ -174,11 +195,24 @@ function updateLeaderboards() {
             <tr>
             <td>${index + 1}</td>
             <td>You</td>
-            <td>${entry.wpm.toFixed(2)}</td>
-            <td>${entry.raw.toFixed(2)}</td>
-            <td>${entry.acc.toFixed(2)}%</td>
-            <td>${entry.mode} ${entry.mode2}</td>
-            <td>${moment(entry.timestamp).format("DD MMM YYYY<br>HH:mm")}</td>
+            <td class="alignRight">${entry.wpm.toFixed(
+              2
+            )}<br><div class="sub">${entry.acc.toFixed(2)}%</div></td>
+            <td class="alignRight">${entry.raw.toFixed(
+              2
+            )}<br><div class="sub">${
+              entry.consistency === "-"
+                ? "-"
+                : entry.consistency.toFixed(2) + "%"
+            }</div></td>
+            <td class="alignRight">${entry.mode}<br><div class="sub">${
+              entry.mode2
+            }</div></td>
+            <td class="alignRight">${moment(entry.timestamp).format(
+              "DD MMM YYYY"
+            )}<br><div class='sub'>${moment(entry.timestamp).format(
+              "HH:mm"
+            )}</div></td>
           </tr>
             `);
           }
@@ -188,11 +222,20 @@ function updateLeaderboards() {
             index === 0 ? '<i class="fas fa-fw fa-crown"></i>' : index + 1
           }</td>
           <td ${meClassString}>${entry.name}</td>
-          <td>${entry.wpm.toFixed(2)}</td>
-          <td>${entry.raw.toFixed(2)}</td>
-          <td>${entry.acc.toFixed(2)}%</td>
-          <td>${entry.mode} ${entry.mode2}</td>
-          <td>${moment(entry.timestamp).format("DD MMM YYYY<br>HH:mm")}</td>
+          <td class="alignRight">${entry.wpm.toFixed(
+            2
+          )}<br><div class="sub">${entry.acc.toFixed(2)}%</td>
+          <td class="alignRight">${entry.raw.toFixed(2)}<br><div class="sub">${
+            entry.consistency === "-" ? "-" : entry.consistency.toFixed(2) + "%"
+          }</div></td>
+          <td class="alignRight">${entry.mode}<br><div class="sub">${
+            entry.mode2
+          }</div></td>
+          <td class="alignRight">${moment(entry.timestamp).format(
+            "DD MMM YYYY"
+          )}<br><div class='sub'>${moment(entry.timestamp).format(
+            "HH:mm"
+          )}</div></td>
         </tr>
         `);
           index++;
@@ -206,18 +249,18 @@ function updateLeaderboards() {
         <tr>
               <td>${i + 1}</td>
               <td>-</td>
-              <td>-</td>
-              <td>-</td>
-              <td>-</td>
-              <td>-</td>
-              <td>-<br>-</td>
+              <td class="alignRight">-</td>
+              <td class="alignRight">-</td>
+              <td class="alignRight">-</td>
+              <td class="alignRight">-<br>-</td>
             </tr>
       `);
         }
       }
     })
     .catch((e) => {
-      showNotification("Something went wrong", 3000);
+      hideBackgroundLoader();
+      Notifications.add("Something went wrong: " + e.message, -1);
     });
 }
 

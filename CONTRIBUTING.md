@@ -22,7 +22,7 @@
    ```.firebaserc
     {
         "projects": {
-            "default": "your-firebase-project-id",
+            "default": "your-firebase-project-id"
         }
     }
    ```
@@ -35,11 +35,17 @@
    - Click "Generate New Private Key"
    - Save as `serviceAccountKey.json` in the `functions/` directory
 
+1. Enable Firebase Authentication
+
+   - In the Firebase console, go to Authentication
+   - Click on `Email/Password`, enable it and save
+   - Click on `Google`, add a support email and save
+
 ## Building and Running
 
 1. Run `npm install` in the project root directory to install dependencies.
 1. Run `npm run start:dev` to start a local dev server on port 5000. It will watch for changes and rebuild when you edit files in `src/` or `public/`. Use ctrl+c to stop it.
-   - Run `firebase use default` if you run into any errors for this.
+   - Run `firebase use <your-project-id>` if you run into any errors for this.
 
 ## Standards and Conventions
 
