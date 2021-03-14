@@ -1,7 +1,12 @@
 # monkeytype
 
+<<<<<<< HEAD
 ![](https://github.com/Miodec/monkeytype/blob/master/static/mtsocial.png?raw=true)
-<br />
+=======
+![](https://github.com/Miodec/monkeytype/blob/master/static/images/mtsocial.png?raw=true)
+
+> > > > > > > c414d3d06047af3831a42e6dac0071f447eb3e15
+> > > > > > > <br />
 
 <img align="left" alt="JavaScript" width="26px" src="https://raw.githubusercontent.com/github/explore/80688e429a7d4ef2fca1e82350fe8e3517d3494d/topics/javascript/javascript.png" />
 <img align="left" alt="HTML5" width="26px" src="https://raw.githubusercontent.com/github/explore/80688e429a7d4ef2fca1e82350fe8e3517d3494d/topics/html/html.png" />
@@ -50,3 +55,7 @@ If you wish to support further development and feel extra awesome, you can do so
 # Contribute
 
 Refer to [CONTRIBUTING.md](https://github.com/Miodec/monkeytype/blob/master/CONTRIBUTING.md)
+
+# Code Of Conduct
+
+Before contributing to this repository please refer to [CODE_OF_CONDUCT.md](https://github.com/Miodec/monkeytype/blob/master/CODE_OF_CONDUCT.md)

@@ -134,6 +134,10 @@ settingsGroups.freedomMode = new SettingsGroup(
   }
 );
 settingsGroups.strictSpace = new SettingsGroup("strictSpace", setStrictSpace);
+settingsGroups.oppositeShiftMode = new SettingsGroup(
+  "oppositeShiftMode",
+  setOppositeShiftMode
+);
 settingsGroups.confidenceMode = new SettingsGroup(
   "confidenceMode",
   setConfidenceMode,
@@ -201,7 +205,8 @@ settingsGroups.playSoundOnClick = new SettingsGroup(
   "playSoundOnClick",
   setPlaySoundOnClick,
   () => {
-    if (config.playSoundOnClick !== "off") playClickSound();
+    if (config.playSoundOnClick !== "off")
+      Sound.playClick(config.playSoundOnClick);
   }
 );
 settingsGroups.showAllLines = new SettingsGroup(
@@ -397,8 +402,8 @@ function refreshThemeButtons() {
   let themesEl = $(".pageSettings .section.themes .allThemes.buttons").empty();
 
   let activeThemeName = config.theme;
-  if (config.randomTheme !== "off" && randomTheme !== null) {
-    activeThemeName = randomTheme;
+  if (config.randomTheme !== "off" && ThemeController.randomTheme !== null) {
+    activeThemeName = ThemeController.randomTheme;
   }
 
   Misc.getSortedThemesList().then((themes) => {
@@ -526,7 +531,7 @@ function hideCustomThemeShare() {
       config.customThemeColors = defaultConfig.customThemeColors;
     }
     setCustomThemeInputs();
-    applyCustomThemeColors();
+    // applyCustomThemeColors();
     $("#customThemeShareWrapper input").val("");
     $("#customThemeShareWrapper")
       .stop(true, true)
@@ -612,11 +617,10 @@ function hideAccountSettingsSection() {
 }
 
 function refreshTagsSettingsSection() {
-  if (firebase.auth().currentUser !== null && db_getSnapshot() !== null) {
+  if (firebase.auth().currentUser !== null && DB.getSnapshot() !== null) {
     let tagsEl = $(".pageSettings .section.tags .tagsList").empty();
-    db_getSnapshot().tags.forEach((tag) => {
+    DB.getSnapshot().tags.forEach((tag) => {
       let tagPbString = "No PB found";
-      let balloon = "";
       if (tag.pb != undefined && tag.pb > 0) {
         tagPbString = `PB: ${tag.pb}`;
       }
@@ -728,7 +732,7 @@ function setCustomThemeInputs() {
 }
 
 function showActiveTags() {
-  db_getSnapshot().tags.forEach((tag) => {
+  DB.getSnapshot().tags.forEach((tag) => {
     if (tag.active === true) {
       $(
         `.pageSettings .section.tags .tagsList .tag[id='${tag.id}'] .active`
@@ -742,7 +746,7 @@ function showActiveTags() {
 }
 
 function toggleTag(tagid, nosave = false) {
-  db_getSnapshot().tags.forEach((tag) => {
+  DB.getSnapshot().tags.forEach((tag) => {
     if (tag.id === tagid) {
       if (tag.active === undefined) {
         tag.active = true;
@@ -751,7 +755,13 @@ function toggleTag(tagid, nosave = false) {
       }
     }
   });
-  updateTestModesNotice();
+  updateTestModesNotice(
+    sameWordset,
+    textHasTab,
+    paceCaret,
+    activeFunBox,
+    config
+  );
   if (!nosave) saveActiveTagsToCookie();
 }
 
@@ -760,10 +770,10 @@ function updateDiscordSettingsSection() {
   if (firebase.auth().currentUser == null) {
     $(".pageSettings .section.discordIntegration").addClass("hidden");
   } else {
-    if (db_getSnapshot() == null) return;
+    if (DB.getSnapshot() == null) return;
     $(".pageSettings .section.discordIntegration").removeClass("hidden");
 
-    if (db_getSnapshot().discordId == undefined) {
+    if (DB.getSnapshot().discordId == undefined) {
       //show button
       $(".pageSettings .section.discordIntegration .buttons").removeClass(
         "hidden"
@@ -848,7 +858,7 @@ $(
     .then((ret) => {
       hideBackgroundLoader();
       if (ret.data.status === 1 || ret.data.status === 2) {
-        db_getSnapshot().pairingCode = ret.data.pairingCode;
+        DB.getSnapshot().pairingCode = ret.data.pairingCode;
         $(".pageSettings .section.discordIntegration .code .bottom").text(
           ret.data.pairingCode
         );
@@ -874,7 +884,7 @@ $(".pageSettings .section.discordIntegration #unlinkDiscordButton").click(
         hideBackgroundLoader();
         console.log(ret);
         if (ret.data.status === 1) {
-          db_getSnapshot().discordId = null;
+          DB.getSnapshot().discordId = null;
           Notifications.add("Accounts unlinked", 0);
           updateDiscordSettingsSection();
         } else {
@@ -942,17 +952,7 @@ $(document).on(
 );
 
 //theme tabs & custom theme
-const colorVars = [
-  "--bg-color",
-  "--main-color",
-  "--caret-color",
-  "--sub-color",
-  "--text-color",
-  "--error-color",
-  "--error-extra-color",
-  "--colorful-error-color",
-  "--colorful-error-extra-color",
-];
+const colorVars = ThemeController.colorVars;
 
 $(".pageSettings .section.themes .tabs .button").click((e) => {
   $(".pageSettings .section.themes .tabs .button").removeClass("active");
@@ -961,7 +961,8 @@ $(".pageSettings .section.themes .tabs .button").click((e) => {
   setCustomThemeInputs();
   if ($target.attr("tab") == "preset") {
     setCustomTheme(false);
-    applyCustomThemeColors();
+    ThemeController.set(config.theme);
+    // applyCustomThemeColors();
     swapElements(
       $('.pageSettings .section.themes .tabContainer [tabContent="custom"]'),
       $('.pageSettings .section.themes .tabContainer [tabContent="preset"]'),
@@ -969,7 +970,8 @@ $(".pageSettings .section.themes .tabs .button").click((e) => {
     );
   } else {
     setCustomTheme(true);
-    applyCustomThemeColors();
+    ThemeController.set("custom");
+    // applyCustomThemeColors();
     swapElements(
       $('.pageSettings .section.themes .tabContainer [tabContent="preset"]'),
       $('.pageSettings .section.themes .tabContainer [tabContent="custom"]'),
@@ -999,37 +1001,41 @@ $(".pageSettings .saveCustomThemeButton").click((e) => {
     }
   );
   setCustomThemeColors(save);
+  ThemeController.set("custom");
   Notifications.add("Custom theme colors saved", 0);
 });
 
 $(".pageSettings #loadCustomColorsFromPreset").click((e) => {
-  previewTheme(config.theme);
+  // previewTheme(config.theme);
+  ThemeController.preview(config.theme);
+
   colorVars.forEach((e) => {
     document.documentElement.style.setProperty(e, "");
   });
 
   setTimeout(() => {
-    refreshThemeColorObject();
+    ChartController.updateAllChartColors();
+
     colorVars.forEach((colorName) => {
       let color;
       if (colorName === "--bg-color") {
-        color = themeColors.bg;
+        color = ThemeColors.bg;
       } else if (colorName === "--main-color") {
-        color = themeColors.main;
+        color = ThemeColors.main;
       } else if (colorName === "--sub-color") {
-        color = themeColors.sub;
+        color = ThemeColors.sub;
       } else if (colorName === "--caret-color") {
-        color = themeColors.caret;
+        color = ThemeColors.caret;
       } else if (colorName === "--text-color") {
-        color = themeColors.text;
+        color = ThemeColors.text;
       } else if (colorName === "--error-color") {
-        color = themeColors.error;
+        color = ThemeColors.error;
       } else if (colorName === "--error-extra-color") {
-        color = themeColors.errorExtra;
+        color = ThemeColors.errorExtra;
       } else if (colorName === "--colorful-error-color") {
-        color = themeColors.colorfulError;
+        color = ThemeColors.colorfulError;
       } else if (colorName === "--colorful-error-extra-color") {
-        color = themeColors.colorfulErrorExtra;
+        color = ThemeColors.colorfulErrorExtra;
       }
       $(".colorPicker #" + colorName).attr("value", color);
       $(".colorPicker #" + colorName).val(color);

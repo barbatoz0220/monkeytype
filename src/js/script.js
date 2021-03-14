@@ -1,241 +1,54 @@
+//test logic
 let wordsList = [];
 let currentWordIndex = 0;
-let currentWordElementIndex = 0;
-let inputHistory = [];
-let correctedHistory = [];
-let currentCorrected = "";
 let currentInput = "";
-let time = 0;
-let timer = null;
-let testActive = false;
-let testStart, testEnd;
-let testInvalid = false;
-let wpmHistory = [];
-let rawHistory = [];
-let restartCount = 0;
-let incompleteTestSeconds = 0;
-let currentTestLine = 0;
-let pageTransition = false;
-let lineTransition = false;
-let testRestarting = false;
-let keypressPerSecond = [];
-let currentKeypress = {
-  count: 0,
-  mod: 0,
-  words: [],
-};
-let errorsPerSecond = [];
-let currentError = {
-  count: 0,
-  words: [],
-};
+let inputHistory = [];
+let currentCorrected = "";
+let correctedHistory = [];
+let sameWordset = false;
+let textHasTab = false;
+let randomQuote = null;
+let bailout = false;
+let manualRestart = false;
+
+//test ui
+let currentWordElementIndex = 0;
 let resultVisible = false;
-let activeWordTopBeforeJump = 0;
 let activeWordTop = 0;
 let activeWordJumped = false;
-let sameWordset = false;
-let quotes = null;
-let focusState = false;
+let activeWordTopBeforeJump = 0;
+let testRestarting = false;
+let lineTransition = false;
+let currentTestLine = 0;
+
+//test timer
+let testActive = false;
+let time = 0;
+let timer = null;
+
+//funbox
 let activeFunBox = "none";
-let manualRestart = false;
-let bailout = false;
-let notSignedInLastResult = null;
-let caretAnimating = true;
-let lastSecondNotRound = false;
+let memoryFunboxTimer = null;
+let memoryFunboxInterval = null;
+
+//pace caret
 let paceCaret = null;
-let missedWords = [];
+
+//ui
+let pageTransition = false;
+let focusState = false;
+let notSignedInLastResult = null;
 let verifyUserWhenLoggedIn = null;
 let modeBeforePractise = null;
 let punctuationBeforePractise = null;
 let numbersBeforePractise = null;
-let memoryFunboxTimer = null;
-let memoryFunboxInterval = null;
-let textHasTab = false;
+let selectedQuoteId = 1;
 
-let themeColors = {
-  bg: "#323437",
-  main: "#e2b714",
-  caret: "#e2b714",
-  sub: "#646669",
-  text: "#d1d0c5",
-  error: "#ca4754",
-  errorExtra: "#7e2a33",
-  colorfulError: "#ca4754",
-  colorfulErrorExtra: "#7e2a33",
-};
+///
 
-let accuracyStats = {
-  correct: 0,
-  incorrect: 0,
-};
-
-let keypressStats = {
-  spacing: {
-    current: -1,
-    array: [],
-  },
-  duration: {
-    current: -1,
-    array: [],
-  },
-};
-
-let errorSound = new Audio("../sound/error.wav");
-let clickSounds = null;
-
-let isPreviewingTheme = false;
-
-function initClickSounds() {
-  clickSounds = {
-    1: [
-      {
-        sounds: [
-          new Audio("../sound/click1/click1_1.wav"),
-          new Audio("../sound/click1/click1_1.wav"),
-        ],
-        counter: 0,
-      },
-      {
-        sounds: [
-          new Audio("../sound/click1/click1_2.wav"),
-          new Audio("../sound/click1/click1_2.wav"),
-        ],
-        counter: 0,
-      },
-      {
-        sounds: [
-          new Audio("../sound/click1/click1_3.wav"),
-          new Audio("../sound/click1/click1_3.wav"),
-        ],
-        counter: 0,
-      },
-    ],
-    2: [
-      {
-        sounds: [
-          new Audio("../sound/click2/click2_1.wav"),
-          new Audio("../sound/click2/click2_1.wav"),
-        ],
-        counter: 0,
-      },
-      {
-        sounds: [
-          new Audio("../sound/click2/click2_2.wav"),
-          new Audio("../sound/click2/click2_2.wav"),
-        ],
-        counter: 0,
-      },
-      {
-        sounds: [
-          new Audio("../sound/click2/click2_3.wav"),
-          new Audio("../sound/click2/click2_3.wav"),
-        ],
-        counter: 0,
-      },
-    ],
-    3: [
-      {
-        sounds: [
-          new Audio("../sound/click3/click3_1.wav"),
-          new Audio("../sound/click3/click3_1.wav"),
-        ],
-        counter: 0,
-      },
-      {
-        sounds: [
-          new Audio("../sound/click3/click3_2.wav"),
-          new Audio("../sound/click3/click3_2.wav"),
-        ],
-        counter: 0,
-      },
-      {
-        sounds: [
-          new Audio("../sound/click3/click3_3.wav"),
-          new Audio("../sound/click3/click3_3.wav"),
-        ],
-        counter: 0,
-      },
-    ],
-    4: [
-      {
-        sounds: [
-          new Audio("../sound/click4/click4_1.wav"),
-          new Audio("../sound/click4/click4_1.wav"),
-        ],
-        counter: 0,
-      },
-      {
-        sounds: [
-          new Audio("../sound/click4/click4_2.wav"),
-          new Audio("../sound/click4/click4_2.wav"),
-        ],
-        counter: 0,
-      },
-      {
-        sounds: [
-          new Audio("../sound/click4/click4_3.wav"),
-          new Audio("../sound/click4/click4_3.wav"),
-        ],
-        counter: 0,
-      },
-      {
-        sounds: [
-          new Audio("../sound/click4/click4_4.wav"),
-          new Audio("../sound/click4/click4_4.wav"),
-        ],
-        counter: 0,
-      },
-      {
-        sounds: [
-          new Audio("../sound/click4/click4_5.wav"),
-          new Audio("../sound/click4/click4_5.wav"),
-        ],
-        counter: 0,
-      },
-      {
-        sounds: [
-          new Audio("../sound/click4/click4_6.wav"),
-          new Audio("../sound/click4/click4_6.wav"),
-        ],
-        counter: 0,
-      },
-    ],
-  };
-}
-
-let customText = {
-  text: "The quick brown fox jumps over the lazy dog".split(" "),
-  isWordRandom: false,
-  isTimeRandom: false,
-  word: "",
-  time: "",
-};
-
-// let customText = "The quick brown fox jumps over the lazy dog".split(" ");
-// let customText.isWordRandom = false;
-// let customText.word = 1;
-let randomQuote = null;
-
-function refreshThemeColorObject() {
-  let st = getComputedStyle(document.body);
-
-  themeColors.bg = st.getPropertyValue("--bg-color").replace(" ", "");
-  themeColors.main = st.getPropertyValue("--main-color").replace(" ", "");
-  themeColors.caret = st.getPropertyValue("--caret-color").replace(" ", "");
-  themeColors.sub = st.getPropertyValue("--sub-color").replace(" ", "");
-  themeColors.text = st.getPropertyValue("--text-color").replace(" ", "");
-  themeColors.error = st.getPropertyValue("--error-color").replace(" ", "");
-  themeColors.errorExtra = st
-    .getPropertyValue("--error-extra-color")
-    .replace(" ", "");
-  themeColors.colorfulError = st
-    .getPropertyValue("--colorful-error-color")
-    .replace(" ", "");
-  themeColors.colorfulErrorExtra = st
-    .getPropertyValue("--colorful-error-extra-color")
-    .replace(" ", "");
-  updateChartColors();
-}
+// let CustomText = "The quick brown fox jumps over the lazy dog".split(" ");
+// let CustomText.isWordRandom = false;
+// let CustomText.word = 1;
 
 function copyResultToClipboard() {
   $(".pageTest .ssWatermark").removeClass("hidden");
@@ -245,11 +58,12 @@ function copyResultToClipboard() {
   var sourceY = src.position().top; /*Y position from div#target*/
   var sourceWidth = src.width(); /*clientWidth/offsetWidth from div#target*/
   var sourceHeight = src.height(); /*clientHeight/offsetHeight from div#target*/
-  $(".notification").addClass("hidden");
+  $("#notificationCenter").addClass("hidden");
+  $("#commandLineMobileButton").addClass("hidden");
   $(".pageTest .loginTip").addClass("hidden");
   try {
     html2canvas(document.body, {
-      backgroundColor: themeColors.bg,
+      backgroundColor: ThemeColors.bg,
       height: sourceHeight + 50,
       width: sourceWidth + 50,
       x: sourceX - 25,
@@ -257,38 +71,37 @@ function copyResultToClipboard() {
     }).then(function (canvas) {
       canvas.toBlob(function (blob) {
         try {
-          navigator.clipboard
-            .write([
-              new ClipboardItem(
-                Object.defineProperty({}, blob.type, {
-                  value: blob,
-                  enumerable: true,
-                })
-              ),
-            ])
-            .then((f) => {
-              $(".notification").removeClass("hidden");
-              Notifications.add("Copied to clipboard", 1, 2);
-              $(".pageTest .ssWatermark").addClass("hidden");
-              $(".pageTest .buttons").removeClass("hidden");
-              if (firebase.auth().currentUser == null)
-                $(".pageTest .loginTip").removeClass("hidden");
-            })
-            .catch((f) => {
-              open(URL.createObjectURL(blob));
-              $(".notification").removeClass("hidden");
-              Notifications.add(
-                "Error saving image to clipboard: " + f.message,
-                -1
-              );
-              $(".pageTest .ssWatermark").addClass("hidden");
-              $(".pageTest .buttons").removeClass("hidden");
-              if (firebase.auth().currentUser == null)
-                $(".pageTest .loginTip").removeClass("hidden");
-            });
+          if (navigator.userAgent.toLowerCase().indexOf("firefox") > -1) {
+            open(URL.createObjectURL(blob));
+            $("#notificationCenter").removeClass("hidden");
+            $("#commandLineMobileButton").removeClass("hidden");
+            $(".pageTest .ssWatermark").addClass("hidden");
+            $(".pageTest .buttons").removeClass("hidden");
+            if (firebase.auth().currentUser == null)
+              $(".pageTest .loginTip").removeClass("hidden");
+          } else {
+            navigator.clipboard
+              .write([
+                new ClipboardItem(
+                  Object.defineProperty({}, blob.type, {
+                    value: blob,
+                    enumerable: true,
+                  })
+                ),
+              ])
+              .then(() => {
+                $("#notificationCenter").removeClass("hidden");
+                $("#commandLineMobileButton").removeClass("hidden");
+                Notifications.add("Copied to clipboard", 1, 2);
+                $(".pageTest .ssWatermark").addClass("hidden");
+                $(".pageTest .buttons").removeClass("hidden");
+                if (firebase.auth().currentUser == null)
+                  $(".pageTest .loginTip").removeClass("hidden");
+              });
+          }
         } catch (e) {
-          open(URL.createObjectURL(blob));
-          $(".notification").removeClass("hidden");
+          $("#notificationCenter").removeClass("hidden");
+          $("#commandLineMobileButton").removeClass("hidden");
           Notifications.add(
             "Error saving image to clipboard: " + e.message,
             -1
@@ -301,7 +114,8 @@ function copyResultToClipboard() {
       });
     });
   } catch (e) {
-    $(".notification").removeClass("hidden");
+    $("#notificationCenter").removeClass("hidden");
+    $("#commandLineMobileButton").removeClass("hidden");
     Notifications.add("Error creating image: " + e.message, -1);
     $(".pageTest .ssWatermark").addClass("hidden");
     $(".pageTest .buttons").removeClass("hidden");
@@ -400,7 +214,13 @@ async function activateFunbox(funbox, mode) {
       settingsGroups.layout.updateButton();
     }
   }
-  updateTestModesNotice();
+  updateTestModesNotice(
+    sameWordset,
+    textHasTab,
+    paceCaret,
+    activeFunBox,
+    config
+  );
   return true;
 }
 
@@ -423,7 +243,7 @@ function getuid() {
 function setFocus(foc) {
   if (foc && !focusState) {
     focusState = true;
-    stopCaretAnimation();
+    Caret.stopAnimation();
     $("#top").addClass("focus");
     $("#bottom").addClass("focus");
     $("body").css("cursor", "none");
@@ -431,9 +251,9 @@ function setFocus(foc) {
   } else if (!foc && focusState) {
     focusState = false;
     if (testActive) {
-      stopCaretAnimation();
+      Caret.stopAnimation();
     } else {
-      startCaretAnimation();
+      Caret.startAnimation(config);
     }
     $("#top").removeClass("focus");
     $("#bottom").removeClass("focus");
@@ -447,13 +267,13 @@ async function initWords() {
   wordsList = [];
   currentWordIndex = 0;
   currentWordElementIndex = 0;
-  accuracyStats = {
-    correct: 0,
-    incorrect: 0,
-  };
+  // accuracy = {
+  //   correct: 0,
+  //   incorrect: 0,
+  // };
   inputHistory = [];
-  correctedHistory = [];
-  currentCorrected = "";
+  // correctedHistory = [];
+  // currentCorrected = "";
   currentInput = "";
 
   let language = await Misc.getLanguage(config.language);
@@ -461,64 +281,9 @@ async function initWords() {
     config.language = "english";
   }
 
-  if (
-    config.mode === "quote" &&
-    (quotes === null ||
-      quotes.language !== config.language.replace(/_\d*k$/g, ""))
-  ) {
-    // if (config.language.split("_")[0] !== "code") {
-    setLanguage(config.language.replace(/_\d*k$/g, ""), true);
-    // }
-    showBackgroundLoader();
-    $.ajax({
-      url: `quotes/${config.language}.json`,
-      async: false,
-      success: function (data) {
-        hideBackgroundLoader();
-        try {
-          if (data.quotes.length === 0) {
-            throw new Error("No quotes");
-          }
-          quotes = data;
-          quotes.groups.forEach((qg, i) => {
-            let lower = qg[0];
-            let upper = qg[1];
-            quotes.groups[i] = quotes.quotes.filter((q) => {
-              if (q.length >= lower && q.length <= upper) {
-                q.group = i;
-                return true;
-              } else {
-                return false;
-              }
-            });
-          });
-          quotes.quotes = [];
-        } catch (e) {
-          console.error(e);
-          Notifications.add(
-            `No ${config.language.replace(/_\d*k$/g, "")} quotes found`,
-            0
-          );
-          testRestarting = false;
-          return;
-        }
-      },
-      error: (e) => {
-        Notifications.add(
-          `Error while loading ${config.language.replace(
-            /_\d*k$/g,
-            ""
-          )} quotes: ${e}`,
-          -1
-        );
-        return;
-      },
-    });
-  }
-
   if (!language) {
     config.language = "english";
-    language = words[config.language];
+    language = await Misc.getLanguage(config.language);
   }
 
   if (
@@ -529,12 +294,12 @@ async function initWords() {
     let wordsBound = 100;
     if (config.showAllLines) {
       if (config.mode === "custom") {
-        if (customText.isWordRandom) {
-          wordsBound = customText.word;
-        } else if (customText.isTimeRandom) {
+        if (CustomText.isWordRandom) {
+          wordsBound = CustomText.word;
+        } else if (CustomText.isTimeRandom) {
           wordsBound = 100;
         } else {
-          wordsBound = customText.text.length;
+          wordsBound = CustomText.text.length;
         }
       } else if (config.mode != "time") {
         wordsBound = config.words;
@@ -545,34 +310,34 @@ async function initWords() {
       }
       if (
         config.mode == "custom" &&
-        customText.isWordRandom &&
-        customText.word < wordsBound
+        CustomText.isWordRandom &&
+        CustomText.word < wordsBound
       ) {
-        wordsBound = customText.word;
+        wordsBound = CustomText.word;
       }
       if (
         config.mode == "custom" &&
-        customText.isTimeRandom &&
-        customText.time < wordsBound
+        CustomText.isTimeRandom &&
+        CustomText.time < wordsBound
       ) {
         wordsBound = 100;
       }
       if (
         config.mode == "custom" &&
-        !customText.isWordRandom &&
-        customText.text.length < wordsBound
+        !CustomText.isWordRandom &&
+        CustomText.text.length < wordsBound
       ) {
-        wordsBound = customText.text.length;
+        wordsBound = CustomText.text.length;
       }
     }
 
     if (
       (config.mode === "custom" &&
-        customText.isWordRandom &&
-        customText.word == 0) ||
+        CustomText.isWordRandom &&
+        CustomText.word == 0) ||
       (config.mode === "custom" &&
-        customText.isTimeRandom &&
-        customText.time == 0)
+        CustomText.isTimeRandom &&
+        CustomText.time == 0)
     ) {
       wordsBound = 100;
     }
@@ -585,7 +350,7 @@ async function initWords() {
     }
     let wordset = language.words;
     if (config.mode == "custom") {
-      wordset = customText.text;
+      wordset = CustomText.text;
     }
     for (let i = 0; i < wordsBound; i++) {
       let randomWord = wordset[Math.floor(Math.random() * wordset.length)];
@@ -593,11 +358,11 @@ async function initWords() {
       const previousWord2 = wordsList[i - 2];
       if (
         config.mode == "custom" &&
-        (customText.isWordRandom || customText.isTimeRandom)
+        (CustomText.isWordRandom || CustomText.isTimeRandom)
       ) {
         randomWord = wordset[Math.floor(Math.random() * wordset.length)];
-      } else if (config.mode == "custom" && !customText.isWordRandom) {
-        randomWord = customText.text[i];
+      } else if (config.mode == "custom" && !CustomText.isWordRandom) {
+        randomWord = CustomText.text[i];
       } else {
         while (
           randomWord == previousWord ||
@@ -648,29 +413,62 @@ async function initWords() {
       wordsList.push(randomWord);
     }
   } else if (config.mode == "quote") {
-    let group = config.quoteLength;
+    // setLanguage(config.language.replace(/_\d*k$/g, ""), true);
 
-    if (config.quoteLength === -1) {
-      group = Math.floor(Math.random() * quotes.groups.length);
-      while (quotes.groups[group].length === 0) {
-        group = Math.floor(Math.random() * quotes.groups.length);
-      }
-    } else {
-      if (quotes.groups[group].length === 0) {
-        Notifications.add("No quotes found for selected quote length", 0);
-        return;
-      }
+    let quotes = await Misc.getQuotes(config.language.replace(/_\d*k$/g, ""));
+
+    if (quotes.length === 0) {
+      Notifications.add(
+        `No ${config.language.replace(/_\d*k$/g, "")} quotes found`,
+        0
+      );
+      testRestarting = false;
+      setMode("words");
+      restartTest();
+      return;
     }
 
-    let rq =
-      quotes.groups[group][
-        Math.floor(Math.random() * quotes.groups[group].length)
-      ];
-    if (randomQuote != null && rq.id === randomQuote.id) {
+    let rq;
+    if (config.quoteLength != -2) {
+      let quoteLengths = config.quoteLength;
+      let groupIndex;
+      if (quoteLengths.length > 1) {
+        groupIndex =
+          quoteLengths[Math.floor(Math.random() * quoteLengths.length)];
+        while (quotes.groups[groupIndex].length === 0) {
+          groupIndex =
+            quoteLengths[Math.floor(Math.random() * quoteLengths.length)];
+        }
+      } else {
+        groupIndex = quoteLengths[0];
+        if (quotes.groups[groupIndex].length === 0) {
+          Notifications.add("No quotes found for selected quote length", 0);
+          testRestarting = false;
+          return;
+        }
+      }
+
       rq =
-        quotes.groups[group][
-          Math.floor(Math.random() * quotes.groups[group].length)
+        quotes.groups[groupIndex][
+          Math.floor(Math.random() * quotes.groups[groupIndex].length)
         ];
+      if (randomQuote != null && rq.id === randomQuote.id) {
+        rq =
+          quotes.groups[groupIndex][
+            Math.floor(Math.random() * quotes.groups[groupIndex].length)
+          ];
+      }
+    } else {
+      quotes.groups.forEach((group) => {
+        let filtered = group.filter((quote) => quote.id == selectedQuoteId);
+        if (filtered.length > 0) {
+          rq = filtered[0];
+        }
+      });
+      if (rq == undefined) {
+        rq = quotes.groups[0][0];
+        Notifications.add("Quote Id Does Not Exist", 0);
+      }
     }
     randomQuote = rq;
     randomQuote.text = randomQuote.text.replace(/ +/gm, " ");
@@ -866,14 +664,14 @@ function punctuateWord(previousWord, currentWord, index, maxindex) {
   ) {
     word = `"${word}"`;
   } else if (
-    Math.random() < 0.01 &&
+    Math.random() < 0.011 &&
     Misc.getLastChar(previousWord) != "," &&
     Misc.getLastChar(previousWord) != "." &&
     config.language.split("_")[0] !== "russian"
   ) {
     word = `'${word}'`;
   } else if (
-    Math.random() < 0.01 &&
+    Math.random() < 0.012 &&
     Misc.getLastChar(previousWord) != "," &&
     Misc.getLastChar(previousWord) != "."
   ) {
@@ -891,21 +689,21 @@ function punctuateWord(previousWord, currentWord, index, maxindex) {
     } else {
       word = `(${word})`;
     }
-  } else if (Math.random() < 0.01) {
+  } else if (Math.random() < 0.013) {
     if (config.language.split("_")[0] == "french") {
       word = ":";
     } else {
       word += ":";
     }
   } else if (
-    Math.random() < 0.01 &&
+    Math.random() < 0.014 &&
     Misc.getLastChar(previousWord) != "," &&
     Misc.getLastChar(previousWord) != "." &&
     previousWord != "-"
   ) {
     word = "-";
   } else if (
-    Math.random() < 0.01 &&
+    Math.random() < 0.015 &&
     Misc.getLastChar(previousWord) != "," &&
     Misc.getLastChar(previousWord) != "." &&
     Misc.getLastChar(previousWord) != ";"
@@ -934,12 +732,12 @@ function addWord() {
       wordsList.length >= config.words &&
       config.words > 0) ||
     (config.mode === "custom" &&
-      customText.isWordRandom &&
-      wordsList.length >= customText.word &&
-      customText.word != 0) ||
+      CustomText.isWordRandom &&
+      wordsList.length >= CustomText.word &&
+      CustomText.word != 0) ||
     (config.mode === "custom" &&
-      !customText.isWordRandom &&
-      wordsList.length >= customText.text.length)
+      !CustomText.isWordRandom &&
+      wordsList.length >= CustomText.text.length)
   )
     return;
   const language =
@@ -948,7 +746,7 @@ function addWord() {
       : {
           //borrow the direction of the current language
           leftToRight: Misc.getCurrentLanguage().leftToRight,
-          words: customText.text,
+          words: CustomText.text,
         };
   const wordset = language.words;
   let randomWord = wordset[Math.floor(Math.random() * wordset.length)];
@@ -962,12 +760,12 @@ function addWord() {
 
   if (
     config.mode === "custom" &&
-    customText.isWordRandom &&
+    CustomText.isWordRandom &&
     wordset.length < 3
   ) {
     randomWord = wordset[Math.floor(Math.random() * wordset.length)];
-  } else if (config.mode == "custom" && !customText.isWordRandom) {
-    randomWord = customText.text[wordsList.length];
+  } else if (config.mode == "custom" && !CustomText.isWordRandom) {
+    randomWord = CustomText.text[wordsList.length];
   } else {
     while (
       previousWordStripped == randomWord ||
@@ -1053,8 +851,8 @@ function showWords() {
   if (
     config.showAllLines &&
     config.mode != "time" &&
-    !(customText.isWordRandom && customText.word == 0) &&
-    !customText.isTimeRandom
+    !(CustomText.isWordRandom && CustomText.word == 0) &&
+    !CustomText.isTimeRandom
   ) {
     $("#words").css("height", "auto");
     $("#wordsWrapper").css("height", "auto");
@@ -1083,7 +881,7 @@ function showWords() {
   }
 
   updateActiveElement();
-  updateCaretPosition();
+  Caret.updatePosition(currentInput, config);
 }
 
 (function (history) {
@@ -1209,8 +1007,7 @@ function updateWordElement(showError) {
           //   }
           // }
           if (!showError) {
-            if (currentLetter == undefined) {
-            } else {
+            if (currentLetter !== undefined) {
               ret += `<letter class="correct ${tabChar}${nlChar}">${currentLetter}</letter>`;
             }
           } else {
@@ -1340,11 +1137,11 @@ function updateTimer() {
   if (!config.showTimerProgress) return;
   if (
     config.mode === "time" ||
-    (config.mode === "custom" && customText.isTimeRandom)
+    (config.mode === "custom" && CustomText.isTimeRandom)
   ) {
     let maxtime = config.time;
-    if (config.mode === "custom" && customText.isTimeRandom) {
-      maxtime = customText.time;
+    if (config.mode === "custom" && CustomText.isTimeRandom) {
+      maxtime = CustomText.time;
     }
     if (config.timerStyle === "bar") {
       let percent = 100 - ((time + 1) / maxtime) * 100;
@@ -1381,10 +1178,10 @@ function updateTimer() {
         outof = config.words;
       }
       if (config.mode === "custom") {
-        if (customText.isWordRandom) {
-          outof = customText.word;
+        if (CustomText.isWordRandom) {
+          outof = CustomText.word;
         } else {
-          outof = customText.text.length;
+          outof = CustomText.text.length;
         }
       }
       let percent = Math.floor(((currentWordIndex + 1) / outof) * 100);
@@ -1402,10 +1199,10 @@ function updateTimer() {
         outof = config.words;
       }
       if (config.mode === "custom") {
-        if (customText.isWordRandom) {
-          outof = customText.word;
+        if (CustomText.isWordRandom) {
+          outof = CustomText.word;
         } else {
-          outof = customText.text.length;
+          outof = CustomText.text.length;
         }
       }
       if (outof === 0) {
@@ -1421,10 +1218,10 @@ function updateTimer() {
         outof = config.words;
       }
       if (config.mode === "custom") {
-        if (customText.isWordRandom) {
-          outof = customText.word;
+        if (CustomText.isWordRandom) {
+          outof = CustomText.word;
         } else {
-          outof = customText.text.length;
+          outof = CustomText.text.length;
         }
       }
       if (config.words === 0) {
@@ -1439,37 +1236,6 @@ function updateTimer() {
     } else {
       $("#miniTimerAndLiveWpm .time").html(`${inputHistory.length}`);
     }
-  }
-}
-
-function hideCaret() {
-  $("#caret").addClass("hidden");
-}
-
-function showCaret() {
-  if ($("#result").hasClass("hidden")) {
-    updateCaretPosition();
-    $("#caret").removeClass("hidden");
-    startCaretAnimation();
-  }
-}
-
-function stopCaretAnimation() {
-  if (caretAnimating === true) {
-    $("#caret").css("animation-name", "none");
-    $("#caret").css("opacity", "1");
-    caretAnimating = false;
-  }
-}
-
-function startCaretAnimation() {
-  if (caretAnimating === false) {
-    if (config.smoothCaret) {
-      $("#caret").css("animation-name", "caretFlashSmooth");
-    } else {
-      $("#caret").css("animation-name", "caretFlashHard");
-    }
-    caretAnimating = true;
   }
 }
 
@@ -1534,15 +1300,15 @@ function flashPressedKeymapKey(key, correct) {
       $(key)
         .stop(true, true)
         .css({
-          color: themeColors.bg,
-          backgroundColor: themeColors.main,
-          borderColor: themeColors.main,
+          color: ThemeColors.bg,
+          backgroundColor: ThemeColors.main,
+          borderColor: ThemeColors.main,
         })
         .animate(
           {
-            color: themeColors.sub,
+            color: ThemeColors.sub,
             backgroundColor: "transparent",
-            borderColor: themeColors.sub,
+            borderColor: ThemeColors.sub,
           },
           500,
           "easeOutExpo"
@@ -1551,15 +1317,15 @@ function flashPressedKeymapKey(key, correct) {
       $(key)
         .stop(true, true)
         .css({
-          color: themeColors.bg,
-          backgroundColor: themeColors.error,
-          borderColor: themeColors.error,
+          color: ThemeColors.bg,
+          backgroundColor: ThemeColors.error,
+          borderColor: ThemeColors.error,
         })
         .animate(
           {
-            color: themeColors.sub,
+            color: ThemeColors.sub,
             backgroundColor: "transparent",
-            borderColor: themeColors.sub,
+            borderColor: ThemeColors.sub,
           },
           500,
           "easeOutExpo"
@@ -1626,97 +1392,6 @@ function updateHighlightedKeymapKey() {
     }
   } catch (e) {
     console.log("could not update highlighted keymap key: " + e.message);
-  }
-}
-
-function updateCaretPosition() {
-  if ($("#wordsWrapper").hasClass("hidden")) return;
-  if ($("#caret").hasClass("off")) {
-    return;
-  }
-
-  let caret = $("#caret");
-
-  let inputLen = currentInput.length;
-  let currentLetterIndex = inputLen - 1;
-  if (currentLetterIndex == -1) {
-    currentLetterIndex = 0;
-  }
-  try {
-    //insert temporary character so the caret will work in zen mode
-    let activeWordEmpty = $("#words .active").children().length == 0;
-    if (activeWordEmpty) {
-      $("#words .active").append('<letter style="opacity: 0;">_</letter>');
-    }
-
-    let currentWordNodeList = document
-      .querySelector("#words .active")
-      .querySelectorAll("letter");
-    let currentLetter = currentWordNodeList[currentLetterIndex];
-    if (inputLen > currentWordNodeList.length) {
-      currentLetter = currentWordNodeList[currentWordNodeList.length - 1];
-    }
-
-    if (config.mode != "zen" && $(currentLetter).length == 0) return;
-    const isLanguageLeftToRight = Misc.getCurrentLanguage().leftToRight;
-    let currentLetterPosLeft = isLanguageLeftToRight
-      ? currentLetter.offsetLeft
-      : currentLetter.offsetLeft + $(currentLetter).width();
-    let currentLetterPosTop = currentLetter.offsetTop;
-    let letterHeight = $(currentLetter).height();
-    let newTop = 0;
-    let newLeft = 0;
-
-    newTop = currentLetterPosTop - Math.round(letterHeight / 5);
-    if (inputLen == 0) {
-      newLeft = isLanguageLeftToRight
-        ? currentLetterPosLeft - caret.width() / 2
-        : currentLetterPosLeft + caret.width() / 2;
-    } else {
-      newLeft = isLanguageLeftToRight
-        ? currentLetterPosLeft + $(currentLetter).width() - caret.width() / 2
-        : currentLetterPosLeft - $(currentLetter).width() + caret.width() / 2;
-    }
-
-    let smoothlinescroll = $("#words .smoothScroller").height();
-    if (smoothlinescroll === undefined) smoothlinescroll = 0;
-
-    if (config.smoothCaret) {
-      caret.stop(true, false).animate(
-        {
-          top: newTop - smoothlinescroll,
-          left: newLeft,
-        },
-        100
-      );
-    } else {
-      caret.stop(true, true).animate(
-        {
-          top: newTop - smoothlinescroll,
-          left: newLeft,
-        },
-        0
-      );
-    }
-
-    if (config.showAllLines) {
-      let browserHeight = window.innerHeight;
-      let middlePos = browserHeight / 2 - $("#caret").outerHeight() / 2;
-      let contentHeight = document.body.scrollHeight;
-
-      if (newTop >= middlePos && contentHeight > browserHeight) {
-        window.scrollTo({
-          left: 0,
-          top: newTop - middlePos,
-          behavior: "smooth",
-        });
-      }
-    }
-    if (activeWordEmpty) {
-      $("#words .active").children().remove();
-    }
-  } catch (e) {
-    console.log("could not move caret: " + e.message);
   }
 }
 
@@ -1801,7 +1476,7 @@ function countChars() {
     correctWordChars: correctWordChars,
     allCorrectChars: correctChars,
     incorrectChars:
-      config.mode == "zen" ? accuracyStats.incorrect : incorrectChars,
+      config.mode == "zen" ? TestStats.accuracy.incorrect : incorrectChars,
     extraChars: extraChars,
     missedChars: missedChars,
     correctSpaces: correctspaces,
@@ -1809,7 +1484,7 @@ function countChars() {
 }
 
 function calculateStats() {
-  let testSeconds = (testEnd - testStart) / 1000;
+  let testSeconds = TestStats.calculateTestSeconds();
   let chars = countChars();
   let wpm = Misc.roundTo2(
     ((chars.correctWordChars + chars.correctSpaces) * (60 / testSeconds)) / 5
@@ -1822,11 +1497,7 @@ function calculateStats() {
       (60 / testSeconds)) /
       5
   );
-  let acc = Misc.roundTo2(
-    (accuracyStats.correct /
-      (accuracyStats.correct + accuracyStats.incorrect)) *
-      100
-  );
+  let acc = Misc.roundTo2(TestStats.calculateAccuracy());
   return {
     wpm: isNaN(wpm) ? 0 : wpm,
     wpmRaw: isNaN(wpmraw) ? 0 : wpmraw,
@@ -1866,14 +1537,13 @@ function showCrown() {
 function failTest() {
   inputHistory.push(currentInput);
   correctedHistory.push(currentCorrected);
-  lastSecondNotRound = true;
+  TestStats.pushKeypressesToHistory();
+  TestStats.setLastSecondNotRound();
   showResult(true);
-  let testNow = performance.now();
-  let testSeconds = Misc.roundTo2((testNow - testStart) / 1000);
-  let afkseconds = keypressPerSecond.filter((x) => x.count == 0 && x.mod == 0)
-    .length;
-  incompleteTestSeconds += testSeconds - afkseconds;
-  restartCount++;
+  let testSeconds = TestStats.calculateTestSeconds(performance.now());
+  let afkseconds = TestStats.calculateAfkSeconds();
+  TestStats.incrementIncompleteSeconds(testSeconds - afkseconds);
+  TestStats.incrementRestartCount();
 }
 
 let resultCalculating = false;
@@ -1886,15 +1556,14 @@ function showResult(difficultyFailed = false) {
 
   resultCalculating = true;
   resultVisible = true;
-  testEnd = performance.now();
+  TestStats.setEnd(performance.now());
   testActive = false;
   setFocus(false);
-  hideCaret();
+  Caret.hide();
   hideLiveWpm();
   hideLiveAcc();
   hideTimer();
   hideKeymap();
-  testInvalid = false;
   let stats = calculateStats();
   if (stats === undefined) {
     stats = {
@@ -1916,11 +1585,10 @@ function showResult(difficultyFailed = false) {
   }
   clearTimeout(timer);
   let testtime = stats.time;
-  let afkseconds = keypressPerSecond.filter((x) => x.count == 0 && x.mod == 0)
-    .length;
+  let afkseconds = TestStats.calculateAfkSeconds();
   let afkSecondsPercent = Misc.roundTo2((afkseconds / testtime) * 100);
 
-  wpmOverTimeChart.options.annotation.annotations = [];
+  ChartController.result.options.annotation.annotations = [];
 
   $("#result #resultWordsHistory").addClass("hidden");
 
@@ -2011,7 +1679,7 @@ function showResult(difficultyFailed = false) {
   }
   $("#result .stats .key .bottom").text(testtime + "s");
   $("#words").removeClass("blurred");
-  $(".outOfFocusWarning").addClass("hidden");
+  OutOfFocus.hide();
   $("#result .stats .key .bottom").text(
     stats.correctChars +
       stats.correctSpaces +
@@ -2050,52 +1718,32 @@ function showResult(difficultyFailed = false) {
     mode2 = "zen";
   }
 
-  if (lastSecondNotRound) {
+  if (TestStats.lastSecondNotRound) {
     let wpmAndRaw = liveWpmAndRaw();
-    wpmHistory.push(wpmAndRaw.wpm);
-    rawHistory.push(wpmAndRaw.raw);
-    keypressPerSecond.push(currentKeypress);
-    currentKeypress = {
-      mod: 0,
-      count: 0,
-      words: [],
-    };
-    errorsPerSecond.push(currentError);
-    currentError = {
-      count: 0,
-      words: [],
-    };
+    TestStats.pushToWpmHistory(wpmAndRaw.wpm);
+    TestStats.pushToRawHistory(wpmAndRaw.raw);
+    TestStats.pushKeypressesToHistory();
+    // errorsPerSecond.push(currentError);
+    // currentError = {
+    //   count: 0,
+    //   words: [],
+    // };
   }
 
   let labels = [];
-  for (let i = 1; i <= wpmHistory.length; i++) {
-    if (lastSecondNotRound && i === wpmHistory.length) {
+  for (let i = 1; i <= TestStats.wpmHistory.length; i++) {
+    if (TestStats.lastSecondNotRound && i === TestStats.wpmHistory.length) {
       labels.push(Misc.roundTo2(testtime).toString());
     } else {
       labels.push(i.toString());
     }
   }
 
-  if (themeColors.main == "") {
-    refreshThemeColorObject();
-  }
+  ChartController.result.updateColors();
 
-  wpmOverTimeChart.options.scales.xAxes[0].ticks.minor.fontColor =
-    themeColors.sub;
-  wpmOverTimeChart.options.scales.xAxes[0].scaleLabel.fontColor =
-    themeColors.sub;
-  wpmOverTimeChart.options.scales.yAxes[0].ticks.minor.fontColor =
-    themeColors.sub;
-  wpmOverTimeChart.options.scales.yAxes[2].ticks.minor.fontColor =
-    themeColors.sub;
-  wpmOverTimeChart.options.scales.yAxes[0].scaleLabel.fontColor =
-    themeColors.sub;
-  wpmOverTimeChart.options.scales.yAxes[2].scaleLabel.fontColor =
-    themeColors.sub;
+  ChartController.result.data.labels = labels;
 
-  wpmOverTimeChart.data.labels = labels;
-
-  let rawWpmPerSecondRaw = keypressPerSecond.map((f) =>
+  let rawWpmPerSecondRaw = TestStats.keypressPerSecond.map((f) =>
     Math.round((f.count / 5) * 60)
   );
 
@@ -2107,8 +1755,8 @@ function showResult(difficultyFailed = false) {
   let consistency = Misc.roundTo2(Misc.kogasa(stddev / avg));
   let keyConsistency = Misc.roundTo2(
     Misc.kogasa(
-      Misc.stdDev(keypressStats.spacing.array) /
-        Misc.mean(keypressStats.spacing.array)
+      Misc.stdDev(TestStats.keypressTimings.spacing.array) /
+        Misc.mean(TestStats.keypressTimings.spacing.array)
     )
   );
 
@@ -2134,31 +1782,21 @@ function showResult(difficultyFailed = false) {
     );
   }
 
-  wpmOverTimeChart.data.datasets[0].borderColor = themeColors.main;
-  wpmOverTimeChart.data.datasets[0].pointBackgroundColor = themeColors.main;
-  wpmOverTimeChart.data.datasets[0].data = wpmHistory;
-  wpmOverTimeChart.data.datasets[1].borderColor = themeColors.sub;
-  wpmOverTimeChart.data.datasets[1].pointBackgroundColor = themeColors.sub;
-  wpmOverTimeChart.data.datasets[1].data = rawWpmPerSecond;
+  ChartController.result.data.datasets[1].data = rawWpmPerSecond;
 
   let maxChartVal = Math.max(
-    ...[Math.max(...rawWpmPerSecond), Math.max(...wpmHistory)]
+    ...[Math.max(...rawWpmPerSecond), Math.max(...TestStats.wpmHistory)]
   );
-
-  let minChartVal = Math.min(
-    ...[Math.min(...rawWpmPerSecond), Math.min(...wpmHistory)]
-  );
-
   if (!config.startGraphsAtZero) {
-    wpmOverTimeChart.options.scales.yAxes[0].ticks.min = Math.min(
-      ...wpmHistory
+    ChartController.result.options.scales.yAxes[0].ticks.min = Math.min(
+      ...TestStats.wpmHistory
     );
-    wpmOverTimeChart.options.scales.yAxes[1].ticks.min = Math.min(
-      ...wpmHistory
+    ChartController.result.options.scales.yAxes[1].ticks.min = Math.min(
+      ...TestStats.wpmHistory
     );
   } else {
-    wpmOverTimeChart.options.scales.yAxes[0].ticks.min = 0;
-    wpmOverTimeChart.options.scales.yAxes[1].ticks.min = 0;
+    ChartController.result.options.scales.yAxes[0].ticks.min = 0;
+    ChartController.result.options.scales.yAxes[1].ticks.min = 0;
   }
 
   // let errorsNoZero = [];
@@ -2171,13 +1809,15 @@ function showResult(difficultyFailed = false) {
   // }
 
   let errorsArray = [];
-  for (let i = 0; i < errorsPerSecond.length; i++) {
-    errorsArray.push(errorsPerSecond[i].count);
+  for (let i = 0; i < TestStats.keypressPerSecond.length; i++) {
+    errorsArray.push(TestStats.keypressPerSecond[i].errors);
   }
 
-  wpmOverTimeChart.data.datasets[2].data = errorsArray;
+  ChartController.result.data.datasets[2].data = errorsArray;
 
-  let kps = keypressPerSecond.slice(Math.max(keypressPerSecond.length - 5, 0));
+  let kps = TestStats.keypressPerSecond.slice(
+    Math.max(TestStats.keypressPerSecond.length - 5, 0)
+  );
 
   kps = kps.map((a) => a.count);
 
@@ -2188,6 +1828,14 @@ function showResult(difficultyFailed = false) {
   if (bailout) afkDetected = false;
 
   $("#result .stats .tags").addClass("hidden");
+
+  let lang = config.language;
+
+  let quoteLength = -1;
+  if (config.mode === "quote") {
+    quoteLength = randomQuote.group;
+    lang = config.language.replace(/_\d*k$/g, "");
+  }
 
   if (difficultyFailed) {
     Notifications.add("Test failed", 0);
@@ -2201,17 +1849,17 @@ function showResult(difficultyFailed = false) {
     (config.mode === "words" && mode2 < 10 && mode2 > 0) ||
     (config.mode === "words" && mode2 == 0 && testtime < 15) ||
     (config.mode === "custom" &&
-      !customText.isWordRandom &&
-      !customText.isTimeRandom &&
-      customText.text.length < 10) ||
+      !CustomText.isWordRandom &&
+      !CustomText.isTimeRandom &&
+      CustomText.text.length < 10) ||
     (config.mode === "custom" &&
-      customText.isWordRandom &&
-      !customText.isTimeRandom &&
-      customText.word < 10) ||
+      CustomText.isWordRandom &&
+      !CustomText.isTimeRandom &&
+      CustomText.word < 10) ||
     (config.mode === "custom" &&
-      !customText.isWordRandom &&
-      customText.isTimeRandom &&
-      customText.time < 15) ||
+      !CustomText.isWordRandom &&
+      CustomText.isTimeRandom &&
+      CustomText.time < 15) ||
     (config.mode === "zen" && testtime < 15)
   ) {
     Notifications.add("Test too short", 0);
@@ -2219,7 +1867,7 @@ function showResult(difficultyFailed = false) {
     let activeTags = [];
     let activeTagsIds = [];
     try {
-      db_getSnapshot().tags.forEach((tag) => {
+      DB.getSnapshot().tags.forEach((tag) => {
         if (tag.active === true) {
           activeTags.push(tag);
           activeTagsIds.push(tag.id);
@@ -2228,37 +1876,29 @@ function showResult(difficultyFailed = false) {
     } catch (e) {}
 
     let chartData = {
-      wpm: wpmHistory,
+      wpm: TestStats.wpmHistory,
       raw: rawWpmPerSecond,
       err: errorsArray,
     };
 
     if (testtime > 122) {
       chartData = "toolong";
-      keypressStats.spacing.array = "toolong";
-      keypressStats.duration.array = "toolong";
-    }
-
-    let lang = config.language;
-
-    let quoteLength = -1;
-    if (config.mode === "quote") {
-      quoteLength = randomQuote.group;
+      TestStats.setKeypressTimingsTooLong();
     }
 
     let cdata = null;
     if (config.mode === "custom") {
       cdata = {};
-      cdata.textLen = customText.text.length;
-      cdata.isWordRandom = customText.isWordRandom;
-      cdata.isTimeRandom = customText.isTimeRandom;
+      cdata.textLen = CustomText.text.length;
+      cdata.isWordRandom = CustomText.isWordRandom;
+      cdata.isTimeRandom = CustomText.isTimeRandom;
       cdata.word =
-        customText.word !== "" && !isNaN(customText.word)
-          ? customText.word
+        CustomText.word !== "" && !isNaN(CustomText.word)
+          ? CustomText.word
           : null;
       cdata.time =
-        customText.time !== "" && !isNaN(customText.time)
-          ? customText.time
+        CustomText.time !== "" && !isNaN(CustomText.time)
+          ? CustomText.time
           : null;
     }
 
@@ -2276,16 +1916,19 @@ function showResult(difficultyFailed = false) {
       numbers: config.numbers,
       timestamp: Date.now(),
       language: lang,
-      restartCount: restartCount,
-      incompleteTestSeconds: incompleteTestSeconds,
+      restartCount: TestStats.restartCount,
+      incompleteTestSeconds:
+        TestStats.incompleteSeconds < 0
+          ? 0
+          : Misc.roundTo2(TestStats.incompleteSeconds),
       difficulty: config.difficulty,
       testDuration: testtime,
       afkDuration: afkseconds,
       blindMode: config.blindMode,
       theme: config.theme,
       tags: activeTagsIds,
-      keySpacing: keypressStats.spacing.array,
-      keyDuration: keypressStats.duration.array,
+      keySpacing: TestStats.keypressTimings.spacing.array,
+      keyDuration: TestStats.keypressTimings.duration.array,
       consistency: consistency,
       keyConsistency: keyConsistency,
       funbox: activeFunBox,
@@ -2295,7 +1938,7 @@ function showResult(difficultyFailed = false) {
     };
 
     if (config.mode !== "custom") {
-      delete completedEvent.customText;
+      delete completedEvent.CustomText;
     }
 
     if (
@@ -2303,8 +1946,9 @@ function showResult(difficultyFailed = false) {
       ((config.difficulty == "master" || config.difficulty == "expert") &&
         !difficultyFailed)
     ) {
-      restartCount = 0;
-      incompleteTestSeconds = 0;
+      // restartCount = 0;
+      // incompleteTestSeconds = 0;
+      TestStats.resetIncomplete();
     }
     if (
       stats.wpm > 0 &&
@@ -2317,17 +1961,16 @@ function showResult(difficultyFailed = false) {
 
         //check local pb
         accountIconLoading(true);
-        let localPb = false;
         let dontShowCrown = false;
         let pbDiff = 0;
-        db_getLocalPB(
+        DB.getLocalPB(
           config.mode,
           mode2,
           config.punctuation,
           config.language,
           config.difficulty
         ).then((lpb) => {
-          db_getUserHighestWpm(
+          DB.getUserHighestWpm(
             config.mode,
             mode2,
             config.punctuation,
@@ -2351,24 +1994,23 @@ function showResult(difficultyFailed = false) {
                   "+" + Misc.roundTo2(pbDiff)
                 );
               }
-              localPb = true;
             }
             if (lpb > 0) {
-              wpmOverTimeChart.options.annotation.annotations.push({
+              ChartController.result.options.annotation.annotations.push({
                 enabled: false,
                 type: "line",
                 mode: "horizontal",
                 scaleID: "wpm",
                 value: lpb,
-                borderColor: themeColors.sub,
+                borderColor: ThemeColors.sub,
                 borderWidth: 1,
                 borderDash: [2, 2],
                 label: {
-                  backgroundColor: themeColors.sub,
+                  backgroundColor: ThemeColors.sub,
                   fontFamily: config.fontFamily.replace(/_/g, " "),
                   fontSize: 11,
                   fontStyle: "normal",
-                  fontColor: themeColors.bg,
+                  fontColor: ThemeColors.bg,
                   xPadding: 6,
                   yPadding: 6,
                   cornerRadius: 3,
@@ -2380,16 +2022,18 @@ function showResult(difficultyFailed = false) {
               if (maxChartVal >= lpb - 15 && maxChartVal <= lpb + 15) {
                 maxChartVal = lpb + 15;
               }
-              wpmOverTimeChart.options.scales.yAxes[0].ticks.max = Math.round(
+              ChartController.result.options.scales.yAxes[0].ticks.max = Math.round(
                 maxChartVal
               );
-              wpmOverTimeChart.options.scales.yAxes[1].ticks.max = Math.round(
+              ChartController.result.options.scales.yAxes[1].ticks.max = Math.round(
                 maxChartVal
               );
-              wpmOverTimeChart.update({ duration: 0 });
+              ChartController.result.update({ duration: 0 });
             }
-            $("#result .stats .leaderboards").removeClass("hidden");
-            $("#result .stats .leaderboards .bottom").html("checking...");
+            if (config.mode === "time" && (mode2 === 15 || mode2 === 60)) {
+              $("#result .stats .leaderboards").removeClass("hidden");
+              $("#result .stats .leaderboards .bottom").html("checking...");
+            }
 
             if (activeTags.length == 0) {
               $("#result .stats .tags").addClass("hidden");
@@ -2399,7 +2043,7 @@ function showResult(difficultyFailed = false) {
             $("#result .stats .tags .bottom").text("");
             let annotationSide = "left";
             activeTags.forEach(async (tag) => {
-              let tpb = await db_getLocalTagPB(
+              let tpb = await DB.getLocalTagPB(
                 tag.id,
                 config.mode,
                 mode2,
@@ -2413,7 +2057,7 @@ function showResult(difficultyFailed = false) {
               if (config.mode != "quote") {
                 if (tpb < stats.wpm) {
                   //new pb for that tag
-                  db_saveLocalTagPB(
+                  DB.saveLocalTagPB(
                     tag.id,
                     config.mode,
                     mode2,
@@ -2434,21 +2078,21 @@ function showResult(difficultyFailed = false) {
                   );
                   // console.log("new pb for tag " + tag.name);
                 } else {
-                  wpmOverTimeChart.options.annotation.annotations.push({
+                  ChartController.result.options.annotation.annotations.push({
                     enabled: false,
                     type: "line",
                     mode: "horizontal",
                     scaleID: "wpm",
                     value: tpb,
-                    borderColor: themeColors.sub,
+                    borderColor: ThemeColors.sub,
                     borderWidth: 1,
                     borderDash: [2, 2],
                     label: {
-                      backgroundColor: themeColors.sub,
+                      backgroundColor: ThemeColors.sub,
                       fontFamily: config.fontFamily.replace(/_/g, " "),
                       fontSize: 11,
                       fontStyle: "normal",
-                      fontColor: themeColors.bg,
+                      fontColor: ThemeColors.bg,
                       xPadding: 6,
                       yPadding: 6,
                       cornerRadius: 3,
@@ -2511,30 +2155,32 @@ function showResult(difficultyFailed = false) {
                     completedEvent.isPb = true;
                   }
                   if (
-                    db_getSnapshot() !== null &&
-                    db_getSnapshot().results !== undefined
+                    DB.getSnapshot() !== null &&
+                    DB.getSnapshot().results !== undefined
                   ) {
-                    db_getSnapshot().results.unshift(completedEvent);
-                    if (db_getSnapshot().globalStats.time == undefined) {
-                      db_getSnapshot().globalStats.time =
+                    DB.getSnapshot().results.unshift(completedEvent);
+                    if (DB.getSnapshot().globalStats.time == undefined) {
+                      DB.getSnapshot().globalStats.time =
                         testtime +
                         completedEvent.incompleteTestSeconds -
                         afkseconds;
                     } else {
-                      db_getSnapshot().globalStats.time +=
+                      DB.getSnapshot().globalStats.time +=
                         testtime +
                         completedEvent.incompleteTestSeconds -
                         afkseconds;
                     }
-                    if (db_getSnapshot().globalStats.started == undefined) {
-                      db_getSnapshot().globalStats.started = restartCount + 1;
+                    if (DB.getSnapshot().globalStats.started == undefined) {
+                      DB.getSnapshot().globalStats.started =
+                        TestStats.restartCount + 1;
                     } else {
-                      db_getSnapshot().globalStats.started += restartCount + 1;
+                      DB.getSnapshot().globalStats.started +=
+                        TestStats.restartCount + 1;
                     }
-                    if (db_getSnapshot().globalStats.completed == undefined) {
-                      db_getSnapshot().globalStats.completed = 1;
+                    if (DB.getSnapshot().globalStats.completed == undefined) {
+                      DB.getSnapshot().globalStats.completed = 1;
                     } else {
-                      db_getSnapshot().globalStats.completed += 1;
+                      DB.getSnapshot().globalStats.completed += 1;
                     }
                   }
                   try {
@@ -2548,7 +2194,7 @@ function showResult(difficultyFailed = false) {
                   if (
                     config.mode === "time" &&
                     (mode2 == "15" || mode2 == "60") &&
-                    db_getSnapshot() !== null
+                    DB.getSnapshot() !== null
                   ) {
                     const lbUpIcon = `<i class="fas fa-angle-up"></i>`;
                     const lbDownIcon = `<i class="fas fa-angle-down"></i>`;
@@ -2559,7 +2205,7 @@ function showResult(difficultyFailed = false) {
                     const glb = e.data.globalLeaderboard;
                     let glbMemory;
                     try {
-                      glbMemory = db_getSnapshot().lbMemory[config.mode + mode2]
+                      glbMemory = DB.getSnapshot().lbMemory[config.mode + mode2]
                         .global;
                     } catch {
                       glbMemory = null;
@@ -2572,7 +2218,7 @@ function showResult(difficultyFailed = false) {
                     } else if (glb.insertedAt === -1) {
                       dontShowGlobalDiff = true;
                       globalLbDiff = glbMemory - glb.insertedAt;
-                      updateLbMemory(
+                      DB.updateLbMemory(
                         config.mode,
                         mode2,
                         "global",
@@ -2583,7 +2229,7 @@ function showResult(difficultyFailed = false) {
                     } else if (glb.insertedAt >= 0) {
                       if (glb.newBest) {
                         globalLbDiff = glbMemory - glb.insertedAt;
-                        updateLbMemory(
+                        DB.updateLbMemory(
                           config.mode,
                           mode2,
                           "global",
@@ -2593,7 +2239,7 @@ function showResult(difficultyFailed = false) {
                         globalLbString = `global: ${str}`;
                       } else {
                         globalLbDiff = glbMemory - glb.foundAt;
-                        updateLbMemory(
+                        DB.updateLbMemory(
                           config.mode,
                           mode2,
                           "global",
@@ -2607,11 +2253,11 @@ function showResult(difficultyFailed = false) {
                       let sString =
                         globalLbDiff === 1 || globalLbDiff === -1 ? "" : "s";
                       if (globalLbDiff > 0) {
-                        globalLbString += ` <span class="lbChange" aria-label="You've gained ${globalLbDiff} position${sString}" data-balloon-pos="up">(${lbUpIcon}${globalLbDiff})</span>`;
+                        globalLbString += ` <span class="lbChange" aria-label="You've gained ${globalLbDiff} position${sString}" data-balloon-pos="left">(${lbUpIcon}${globalLbDiff})</span>`;
                       } else if (globalLbDiff === 0) {
-                        globalLbString += ` <span class="lbChange" aria-label="Your position remained the same" data-balloon-pos="up">(${lbRightIcon}${globalLbDiff})</span>`;
+                        globalLbString += ` <span class="lbChange" aria-label="Your position remained the same" data-balloon-pos="left">(${lbRightIcon}${globalLbDiff})</span>`;
                       } else if (globalLbDiff < 0) {
-                        globalLbString += ` <span class="lbChange" aria-label="You've lost ${globalLbDiff} position${sString}" data-balloon-pos="up">(${lbDownIcon}${globalLbDiff})</span>`;
+                        globalLbString += ` <span class="lbChange" aria-label="You've lost ${globalLbDiff} position${sString}" data-balloon-pos="left">(${lbDownIcon}${globalLbDiff})</span>`;
                       }
                     }
 
@@ -2620,7 +2266,7 @@ function showResult(difficultyFailed = false) {
                     const dlb = e.data.dailyLeaderboard;
                     let dlbMemory;
                     try {
-                      dlbMemory = db_getSnapshot().lbMemory[config.mode + mode2]
+                      dlbMemory = DB.getSnapshot().lbMemory[config.mode + mode2]
                         .daily;
                     } catch {
                       dlbMemory = null;
@@ -2633,7 +2279,7 @@ function showResult(difficultyFailed = false) {
                     } else if (dlb.insertedAt === -1) {
                       dontShowDailyDiff = true;
                       dailyLbDiff = dlbMemory - dlb.insertedAt;
-                      updateLbMemory(
+                      DB.updateLbMemory(
                         config.mode,
                         mode2,
                         "daily",
@@ -2643,7 +2289,7 @@ function showResult(difficultyFailed = false) {
                     } else if (dlb.insertedAt >= 0) {
                       if (dlb.newBest) {
                         dailyLbDiff = dlbMemory - dlb.insertedAt;
-                        updateLbMemory(
+                        DB.updateLbMemory(
                           config.mode,
                           mode2,
                           "daily",
@@ -2653,7 +2299,7 @@ function showResult(difficultyFailed = false) {
                         dailyLbString = `daily: ${str}`;
                       } else {
                         dailyLbDiff = dlbMemory - dlb.foundAt;
-                        updateLbMemory(
+                        DB.updateLbMemory(
                           config.mode,
                           mode2,
                           "daily",
@@ -2667,11 +2313,11 @@ function showResult(difficultyFailed = false) {
                       let sString =
                         dailyLbDiff === 1 || dailyLbDiff === -1 ? "" : "s";
                       if (dailyLbDiff > 0) {
-                        dailyLbString += ` <span class="lbChange" aria-label="You've gained ${dailyLbDiff} position${sString}" data-balloon-pos="up">(${lbUpIcon}${dailyLbDiff})</span>`;
+                        dailyLbString += ` <span class="lbChange" aria-label="You've gained ${dailyLbDiff} position${sString}" data-balloon-pos="left">(${lbUpIcon}${dailyLbDiff})</span>`;
                       } else if (dailyLbDiff === 0) {
-                        dailyLbString += ` <span class="lbChange" aria-label="Your position remained the same" data-balloon-pos="up">(${lbRightIcon}${dailyLbDiff})</span>`;
+                        dailyLbString += ` <span class="lbChange" aria-label="Your position remained the same" data-balloon-pos="left">(${lbRightIcon}${dailyLbDiff})</span>`;
                       } else if (dailyLbDiff < 0) {
-                        dailyLbString += ` <span class="lbChange" aria-label="You've lost ${dailyLbDiff} position${sString}" data-balloon-pos="up">(${lbDownIcon}${dailyLbDiff})</span>`;
+                        dailyLbString += ` <span class="lbChange" aria-label="You've lost ${dailyLbDiff} position${sString}" data-balloon-pos="left">(${lbDownIcon}${dailyLbDiff})</span>`;
                       }
                     }
                     $("#result .stats .leaderboards .bottom").html(
@@ -2680,7 +2326,7 @@ function showResult(difficultyFailed = false) {
 
                     // CloudFunctions.saveLbMemory({
                     //   uid: firebase.auth().currentUser.uid,
-                    //   obj: db_getSnapshot().lbMemory,
+                    //   obj: DB.getSnapshot().lbMemory,
                     // }).then((d) => {
                     //   if (d.data.returnCode === 1) {
                     //   } else {
@@ -2720,9 +2366,7 @@ function showResult(difficultyFailed = false) {
                   if (e.data.resultCode === 2) {
                     //new pb
                     showCrown();
-                    if (!localPb) {
-                    }
-                    db_saveLocalPB(
+                    DB.saveLocalPB(
                       config.mode,
                       mode2,
                       config.punctuation,
@@ -2760,7 +2404,7 @@ function showResult(difficultyFailed = false) {
       }
     } else {
       Notifications.add("Test invalid", 0);
-      testInvalid = true;
+      TestStats.setInvalid();
       try {
         firebase.analytics().logEvent("testCompletedInvalid", completedEvent);
       } catch (e) {
@@ -2803,7 +2447,7 @@ function showResult(difficultyFailed = false) {
     activeFunBox !== "gibberish" &&
     activeFunBox !== "58008"
   ) {
-    testType += "<br>" + config.language.replace(/_/g, " ");
+    testType += "<br>" + lang;
   }
   if (config.punctuation) {
     testType += "<br>punctuation";
@@ -2835,7 +2479,7 @@ function showResult(difficultyFailed = false) {
   if (afkDetected) {
     otherText += "<br>afk detected";
   }
-  if (testInvalid) {
+  if (TestStats.invalid) {
     otherText += "<br>invalid";
   }
   if (sameWordset) {
@@ -2869,15 +2513,15 @@ function showResult(difficultyFailed = false) {
     $("#result .stats .source").addClass("hidden");
   }
 
-  wpmOverTimeChart.options.scales.yAxes[0].ticks.max = maxChartVal;
-  wpmOverTimeChart.options.scales.yAxes[1].ticks.max = maxChartVal;
+  ChartController.result.options.scales.yAxes[0].ticks.max = maxChartVal;
+  ChartController.result.options.scales.yAxes[1].ticks.max = maxChartVal;
 
-  wpmOverTimeChart.update({ duration: 0 });
-  wpmOverTimeChart.resize();
+  ChartController.result.update({ duration: 0 });
+  ChartController.result.resize();
   swapElements($("#typingTest"), $("#result"), 250, () => {
     resultCalculating = false;
     $("#words").empty();
-    wpmOverTimeChart.resize();
+    ChartController.result.resize();
     if (config.alwaysShowWordsHistory) {
       toggleResultWordsDisplay();
     }
@@ -2901,7 +2545,8 @@ function startTest() {
     console.log("Analytics unavailable");
   }
   testActive = true;
-  testStart = performance.now();
+  TestStats.setStart(performance.now());
+  TestStats.resetKeypressTimings();
   restartTimer();
   showTimer();
   $("#liveWpm").text("0");
@@ -2909,16 +2554,6 @@ function startTest() {
   showLiveAcc();
   updateTimer();
   clearTimeout(timer);
-  keypressStats = {
-    spacing: {
-      current: -1,
-      array: [],
-    },
-    duration: {
-      current: -1,
-      array: [],
-    },
-  };
 
   if (activeFunBox === "memory") {
     memoryFunboxInterval = clearInterval(memoryFunboxInterval);
@@ -2939,21 +2574,17 @@ function startTest() {
       $(".pageTest #premidSecondsLeft").text(config.time - time);
       if (
         config.mode === "time" ||
-        (config.mode === "custom" && customText.isTimeRandom)
+        (config.mode === "custom" && CustomText.isTimeRandom)
       ) {
         updateTimer();
       }
       let wpmAndRaw = liveWpmAndRaw();
       updateLiveWpm(wpmAndRaw.wpm, wpmAndRaw.raw);
-      wpmHistory.push(wpmAndRaw.wpm);
-      rawHistory.push(wpmAndRaw.raw);
+      TestStats.pushToWpmHistory(wpmAndRaw.wpm);
+      TestStats.pushToRawHistory(wpmAndRaw.raw);
       Monkey.updateFastOpacity(wpmAndRaw.wpm);
 
-      let acc = Misc.roundTo2(
-        (accuracyStats.correct /
-          (accuracyStats.correct + accuracyStats.incorrect)) *
-          100
-      );
+      let acc = Misc.roundTo2(TestStats.calculateAccuracy());
 
       if (activeFunBox === "layoutfluid" && config.mode === "time") {
         const layouts = ["qwerty", "dvorak", "colemak"];
@@ -2988,17 +2619,7 @@ function startTest() {
         settingsGroups.layout.updateButton();
       }
 
-      keypressPerSecond.push(currentKeypress);
-      currentKeypress = {
-        mod: 0,
-        count: 0,
-        words: [],
-      };
-      errorsPerSecond.push(currentError);
-      currentError = {
-        count: 0,
-        words: [],
-      };
+      TestStats.pushKeypressesToHistory();
       if (
         (config.minWpm === "custom" &&
           wpmAndRaw.wpm < parseInt(config.minWpmCustomSpeed) &&
@@ -3011,19 +2632,19 @@ function startTest() {
       }
       if (
         config.mode == "time" ||
-        (config.mode === "custom" && customText.isTimeRandom)
+        (config.mode === "custom" && CustomText.isTimeRandom)
       ) {
         if (
           (time >= config.time &&
             config.time !== 0 &&
             config.mode === "time") ||
-          (time >= customText.time &&
-            customText.time !== 0 &&
+          (time >= CustomText.time &&
+            CustomText.time !== 0 &&
             config.mode === "custom")
         ) {
           //times up
           clearTimeout(timer);
-          hideCaret();
+          Caret.hide();
           inputHistory.push(currentInput);
           correctedHistory.push(currentCorrected);
           showResult();
@@ -3032,7 +2653,7 @@ function startTest() {
       }
       loop(expectedStepEnd + stepIntervalMS);
     }, delay);
-  })(testStart + stepIntervalMS);
+  })(TestStats.start + stepIntervalMS);
   return true;
 }
 
@@ -3043,16 +2664,16 @@ function restartTest(withSameWordset = false, nosave = false, event) {
   //     (config.mode === "time" && config.time < 3600 && config.time > 0) ||
   //     config.mode === "quote" ||
   //     (config.mode === "custom" &&
-  //       customText.isWordRandom &&
-  //       customText.word < 1000 &&
-  //       customText.word != 0) ||
+  //       CustomText.isWordRandom &&
+  //       CustomText.word < 1000 &&
+  //       CustomText.word != 0) ||
   //     (config.mode === "custom" &&
-  //       customText.isTimeRandom &&
-  //       customText.time < 3600 &&
-  //       customText.time != 0) ||
+  //       CustomText.isTimeRandom &&
+  //       CustomText.time < 3600 &&
+  //       CustomText.time != 0) ||
   //     (config.mode === "custom" &&
-  //       !customText.isWordRandom &&
-  //       customText.text.length < 1000)
+  //       !CustomText.isWordRandom &&
+  //       CustomText.text.length < 1000)
   //   ) {
   //   } else {
   //     if (testActive) {
@@ -3064,6 +2685,7 @@ function restartTest(withSameWordset = false, nosave = false, event) {
   //     }
   //   }
   // }
+
   if (testRestarting || resultCalculating) {
     try {
       event.preventDefault();
@@ -3082,9 +2704,13 @@ function restartTest(withSameWordset = false, nosave = false, event) {
         if (config.mode !== "zen") event.preventDefault();
       } catch {}
       if (
-        Misc.canQuickRestart(config.mode, config.words, config.time, customText)
+        !Misc.canQuickRestart(
+          config.mode,
+          config.words,
+          config.time,
+          CustomText
+        )
       ) {
-      } else {
         let message = "Use your mouse to confirm.";
         if (config.quickTab)
           message = "Press shift + tab or use your mouse to confirm.";
@@ -3098,12 +2724,13 @@ function restartTest(withSameWordset = false, nosave = false, event) {
   }
 
   if (testActive) {
-    let testNow = performance.now();
-    let testSeconds = Misc.roundTo2((testNow - testStart) / 1000);
-    let afkseconds = keypressPerSecond.filter((x) => x.count == 0 && x.mod == 0)
-      .length;
-    incompleteTestSeconds += testSeconds - afkseconds;
-    restartCount++;
+    TestStats.pushKeypressesToHistory();
+    let testSeconds = TestStats.calculateTestSeconds(performance.now());
+    let afkseconds = TestStats.calculateAfkSeconds();
+    // incompleteTestSeconds += ;
+    TestStats.incrementIncompleteSeconds(testSeconds - afkseconds);
+    TestStats.incrementRestartCount();
+    // restartCount++;
   }
 
   if (config.mode == "zen") {
@@ -3123,13 +2750,12 @@ function restartTest(withSameWordset = false, nosave = false, event) {
   manualRestart = false;
   clearTimeout(timer);
   time = 0;
-  wpmHistory = [];
-  rawHistory = [];
-  missedWords = {};
-  correctedHistory = [];
+  TestStats.restart();
   currentCorrected = "";
+  correctedHistory = [];
+  ShiftTracker.reset();
   setFocus(false);
-  hideCaret();
+  Caret.hide();
   testActive = false;
   hideLiveWpm();
   hideLiveAcc();
@@ -3139,30 +2765,10 @@ function restartTest(withSameWordset = false, nosave = false, event) {
   if (paceCaret !== null) clearTimeout(paceCaret.timeout);
   $("#showWordHistoryButton").removeClass("loaded");
   focusWords();
-  keypressPerSecond = [];
-  lastSecondNotRound = false;
-  currentKeypress = {
-    mod: 0,
-    count: 0,
-    words: [],
-  };
-  errorsPerSecond = [];
-  currentError = {
-    count: 0,
-    words: [],
-  };
+
   currentTestLine = 0;
   activeWordJumped = false;
-  keypressStats = {
-    spacing: {
-      current: -1,
-      array: [],
-    },
-    duration: {
-      current: -1,
-      array: [],
-    },
-  };
+
   $("#timerNumber").css("opacity", 0);
   let el = null;
   if (resultVisible) {
@@ -3178,7 +2784,7 @@ function restartTest(withSameWordset = false, nosave = false, event) {
       !pageTransition &&
       !config.customTheme
     ) {
-      randomiseTheme();
+      ThemeController.randomiseTheme(config);
     }
   }
   resultVisible = false;
@@ -3203,10 +2809,6 @@ function restartTest(withSameWordset = false, nosave = false, event) {
         testActive = false;
         currentWordIndex = 0;
         currentWordElementIndex = 0;
-        accuracyStats = {
-          correct: 0,
-          incorrect: 0,
-        };
         inputHistory = [];
         currentInput = "";
         initPaceCaret();
@@ -3294,9 +2896,17 @@ function restartTest(withSameWordset = false, nosave = false, event) {
             hideCrown();
             clearTimeout(timer);
             if ($("#commandLineWrapper").hasClass("hidden")) focusWords();
-            wpmOverTimeChart.update();
-            updateTestModesNotice();
+            ChartController.result.update();
+            updateTestModesNotice(
+              sameWordset,
+              textHasTab,
+              paceCaret,
+              activeFunBox,
+              config
+            );
             pageTransition = false;
+            // console.log(TestStats.incompleteSeconds);
+            // console.log(TestStats.restartCount);
           }
         );
     }
@@ -3306,18 +2916,6 @@ function restartTest(withSameWordset = false, nosave = false, event) {
 function focusWords() {
   if (!$("#wordsWrapper").hasClass("hidden")) {
     $("#wordsInput").focus();
-  }
-}
-
-function setCustomText() {
-  customText.text = prompt("Custom text").trim();
-  customText.text = customText.text.replace(/[\n\r\t ]/gm, " ");
-  customText.text = customText.text.replace(/ +/gm, " ");
-  customText.text = customText.text.split(" ");
-  if (customText.text.text.length >= 10000) {
-    Notifications.add("Custom text cannot be longer than 10000 words.", 0);
-    setMode("time");
-    customText.text = "The quick brown fox jumped over the lazy dog".split(" ");
   }
 }
 
@@ -3338,8 +2936,9 @@ function changePage(page) {
     });
     showTestConfig();
     hideSignOutButton();
-    restartCount = 0;
-    incompleteTestSeconds = 0;
+    // restartCount = 0;
+    // incompleteTestSeconds = 0;
+    TestStats.resetIncomplete();
     manualRestart = true;
     restartTest();
   } else if (page == "about") {
@@ -3430,7 +3029,13 @@ function setMode(mode, nosave) {
       activeFunBox === "ascii"
     ) {
       activeFunBox = "none";
-      updateTestModesNotice();
+      updateTestModesNotice(
+        sameWordset,
+        textHasTab,
+        paceCaret,
+        activeFunBox,
+        config
+      );
     }
     $("#top .config .wordCount").addClass("hidden");
     $("#top .config .time").addClass("hidden");
@@ -3494,8 +3099,7 @@ function liveWpmAndRaw() {
     spaces = 0;
   }
   chars += currentInput.length;
-  let testNow = performance.now();
-  let testSeconds = (testNow - testStart) / 1000;
+  let testSeconds = TestStats.calculateTestSeconds(performance.now());
   let wpm = Math.round(((correctWordChars + spaces) * (60 / testSeconds)) / 5);
   let raw = Math.round(((chars + spaces) * (60 / testSeconds)) / 5);
   return {
@@ -3633,94 +3237,6 @@ function hideLiveAcc() {
       $("#miniTimerAndLiveWpm .acc").addClass("hidden");
     }
   );
-}
-
-function swapElements(
-  el1,
-  el2,
-  totalDuration,
-  callback = function () {
-    return;
-  }
-) {
-  if (
-    (el1.hasClass("hidden") && !el2.hasClass("hidden")) ||
-    (!el1.hasClass("hidden") && el2.hasClass("hidden"))
-  ) {
-    //one of them is hidden and the other is visible
-    if (el1.hasClass("hidden")) {
-      callback();
-      return false;
-    }
-    $(el1)
-      .removeClass("hidden")
-      .css("opacity", 1)
-      .animate(
-        {
-          opacity: 0,
-        },
-        totalDuration / 2,
-        () => {
-          $(el1).addClass("hidden");
-          $(el2)
-            .removeClass("hidden")
-            .css("opacity", 0)
-            .animate(
-              {
-                opacity: 1,
-              },
-              totalDuration / 2,
-              () => {
-                callback();
-              }
-            );
-        }
-      );
-  } else if (el1.hasClass("hidden") && el2.hasClass("hidden")) {
-    //both are hidden, only fade in the second
-    $(el2)
-      .removeClass("hidden")
-      .css("opacity", 0)
-      .animate(
-        {
-          opacity: 1,
-        },
-        totalDuration,
-        () => {
-          callback();
-        }
-      );
-  } else {
-    callback();
-  }
-}
-
-function updateAccountLoginButton() {
-  if (firebase.auth().currentUser != null) {
-    swapElements(
-      $("#menu .icon-button.login"),
-      $("#menu .icon-button.account"),
-      250
-    );
-  } else {
-    swapElements(
-      $("#menu .icon-button.account"),
-      $("#menu .icon-button.login"),
-      250
-    );
-  }
-}
-
-function accountIconLoading(truefalse) {
-  if (truefalse) {
-    $("#top #menu .account .icon").html(
-      '<i class="fas fa-fw fa-spin fa-circle-notch"></i>'
-    );
-    $("#top #menu .account").css("opacity", 1).css("pointer-events", "none");
-  } else {
-    $("#top #menu .account .icon").html('<i class="fas fa-fw fa-user"></i>');
-    $("#top #menu .account").css("opacity", 1).css("pointer-events", "auto");
-  }
 }
 
 function toggleResultWordsDisplay() {
@@ -3946,151 +3462,6 @@ function hideEditTags() {
   }
 }
 
-function updateTestModesNotice() {
-  let anim = false;
-  if ($(".pageTest #testModesNotice").text() === "") anim = true;
-
-  $(".pageTest #testModesNotice").empty();
-
-  if (sameWordset) {
-    $(".pageTest #testModesNotice").append(
-      `<div class="text-button" function="restartTest()" style="color:var(--error-color);"><i class="fas fa-sync-alt"></i>repeated</div>`
-    );
-  }
-
-  if (textHasTab) {
-    $(".pageTest #testModesNotice").append(
-      `<div class="text-button"><i class="fas fa-long-arrow-alt-right"></i>shift + tab to restart</div>`
-    );
-  }
-
-  if (config.mode === "zen") {
-    $(".pageTest #testModesNotice").append(
-      `<div class="text-button"><i class="fas fa-poll"></i>shift + enter to finish zen </div>`
-    );
-  }
-
-  // /^[0-9a-zA-Z_.-]+$/.test(name);
-
-  if (/_\d+k$/g.test(config.language)) {
-    $(".pageTest #testModesNotice").append(
-      `<div class="text-button" commands="commandsLanguages"><i class="fas fa-globe-americas"></i>${config.language.replace(
-        /_/g,
-        " "
-      )}</div>`
-    );
-  }
-
-  if (config.difficulty === "expert") {
-    $(".pageTest #testModesNotice").append(
-      `<div class="text-button" commands="commandsDifficulty"><i class="fas fa-star-half-alt"></i>expert</div>`
-    );
-  } else if (config.difficulty === "master") {
-    $(".pageTest #testModesNotice").append(
-      `<div class="text-button" commands="commandsDifficulty"><i class="fas fa-star"></i>master</div>`
-    );
-  }
-
-  if (config.blindMode) {
-    $(".pageTest #testModesNotice").append(
-      `<div class="text-button" function="toggleBlindMode()"><i class="fas fa-eye-slash"></i>blind</div>`
-    );
-  }
-
-  if (config.paceCaret !== "off") {
-    let speed = "";
-    try {
-      speed = ` (${Math.round(paceCaret.wpm)} wpm)`;
-    } catch {}
-    $(".pageTest #testModesNotice").append(
-      `<div class="text-button" commands="commandsPaceCaret"><i class="fas fa-tachometer-alt"></i>${
-        config.paceCaret === "average"
-          ? "average"
-          : config.paceCaret === "pb"
-          ? "pb"
-          : "custom"
-      } pace${speed}</div>`
-    );
-  }
-
-  if (config.minWpm !== "off") {
-    $(".pageTest #testModesNotice").append(
-      `<div class="text-button" commands="commandsMinWpm"><i class="fas fa-bomb"></i>min ${config.minWpmCustomSpeed} wpm</div>`
-    );
-  }
-
-  if (config.minAcc !== "off") {
-    $(".pageTest #testModesNotice").append(
-      `<div class="text-button" commands="commandsMinAcc"><i class="fas fa-bomb"></i>min ${config.minAccCustom}% acc</div>`
-    );
-  }
-
-  if (activeFunBox !== "none") {
-    $(".pageTest #testModesNotice").append(
-      `<div class="text-button" commands="commandsFunbox"><i class="fas fa-gamepad"></i>${activeFunBox.replace(
-        /_/g,
-        " "
-      )}</div>`
-    );
-  }
-
-  if (config.confidenceMode === "on") {
-    $(".pageTest #testModesNotice").append(
-      `<div class="text-button" commands="commandsConfidenceMode"><i class="fas fa-backspace"></i>confidence</div>`
-    );
-  }
-  if (config.confidenceMode === "max") {
-    $(".pageTest #testModesNotice").append(
-      `<div class="text-button" commands="commandsConfidenceMode"><i class="fas fa-backspace"></i>max confidence</div>`
-    );
-  }
-
-  if (config.stopOnError != "off") {
-    $(".pageTest #testModesNotice").append(
-      `<div class="text-button" commands="commandsStopOnError"><i class="fas fa-hand-paper"></i>stop on ${config.stopOnError}</div>`
-    );
-  }
-
-  if (config.layout !== "default") {
-    $(".pageTest #testModesNotice").append(
-      `<div class="text-button" commands="commandsLayouts"><i class="fas fa-keyboard"></i>${config.layout}</div>`
-    );
-  }
-
-  let tagsString = "";
-  try {
-    db_getSnapshot().tags.forEach((tag) => {
-      if (tag.active === true) {
-        tagsString += tag.name + ", ";
-      }
-    });
-
-    if (tagsString !== "") {
-      $(".pageTest #testModesNotice").append(
-        `<div class="text-button" commands="commandsTags"><i class="fas fa-tag"></i>${tagsString.substring(
-          0,
-          tagsString.length - 2
-        )}</div>`
-      );
-    }
-  } catch {}
-
-  if (anim) {
-    $(".pageTest #testModesNotice")
-      .css("transition", "none")
-      .css("opacity", 0)
-      .animate(
-        {
-          opacity: 1,
-        },
-        125,
-        () => {
-          $(".pageTest #testModesNotice").css("transition", ".125s");
-        }
-      );
-  }
-}
-
 $("#tagsWrapper").click((e) => {
   if ($(e.target).attr("id") === "tagsWrapper") {
     hideEditTags();
@@ -4122,7 +3493,7 @@ function tagsEdit() {
       let status = e.data.resultCode;
       if (status === 1) {
         Notifications.add("Tag added", 1, 2);
-        db_getSnapshot().tags.push({
+        DB.getSnapshot().tags.push({
           name: inputVal,
           id: e.data.id,
         });
@@ -4146,7 +3517,7 @@ function tagsEdit() {
       let status = e.data.resultCode;
       if (status === 1) {
         Notifications.add("Tag updated", 1);
-        db_getSnapshot().tags.forEach((tag) => {
+        DB.getSnapshot().tags.forEach((tag) => {
           if (tag.id === tagid) {
             tag.name = inputVal;
           }
@@ -4170,9 +3541,9 @@ function tagsEdit() {
       let status = e.data.resultCode;
       if (status === 1) {
         Notifications.add("Tag removed", 1);
-        db_getSnapshot().tags.forEach((tag, index) => {
+        DB.getSnapshot().tags.forEach((tag, index) => {
           if (tag.id === tagid) {
-            db_getSnapshot().tags.splice(index, 1);
+            DB.getSnapshot().tags.splice(index, 1);
           }
         });
         updateResultEditTagsPanelButtons();
@@ -4209,11 +3580,11 @@ function showCustomTextPopup() {
       .css("opacity", 0)
       .removeClass("hidden")
       .animate({ opacity: 1 }, 100, () => {
-        let newtext = customText.text.join(" ");
+        let newtext = CustomText.text.join(" ");
         newtext = newtext.replace(/\n /g, "\n");
         $("#customTextPopup textarea").val(newtext);
-        $("#customTextPopup .wordcount input").val(customText.word);
-        $("#customTextPopup .time input").val(customText.time);
+        $("#customTextPopup .wordcount input").val(CustomText.word);
+        $("#customTextPopup .time input").val(CustomText.time);
         $("#customTextPopup textarea").focus();
       });
   }
@@ -4237,7 +3608,7 @@ function hideCustomTextPopup() {
 }
 
 $("#customTextPopupWrapper").mousedown((e) => {
-  if ($(e.target).attr("id") === "customTextPopupWrapper") {
+  if ($(e.target).attr("id") === "CustomTextPopupWrapper") {
     hideCustomTextPopup();
   }
 });
@@ -4283,21 +3654,23 @@ $("#customTextPopup .button").click(() => {
   // text = Misc.remove_non_ascii(text);
   text = text.replace(/[\u2060]/g, "");
   text = text.split(" ");
-  customText.text = text;
-  customText.word = parseInt($("#customTextPopup .wordcount input").val());
-  customText.time = parseInt($("#customTextPopup .time input").val());
+  CustomText.setText(text);
+  CustomText.setWord(parseInt($("#customTextPopup .wordcount input").val()));
+  CustomText.setTime(parseInt($("#customTextPopup .time input").val()));
 
-  customText.isWordRandom =
+  CustomText.setIsWordRandom(
     $("#customTextPopup .check input").prop("checked") &&
-    !isNaN(customText.word);
-  customText.isTimeRandom =
+      !isNaN(CustomText.word)
+  );
+  CustomText.setIsTimeRandom(
     $("#customTextPopup .check input").prop("checked") &&
-    !isNaN(customText.time);
+      !isNaN(CustomText.time)
+  );
 
   if (
-    isNaN(customText.word) &&
-    isNaN(customText.time) &&
-    (customText.isTimeRandom || customText.isWordRandom)
+    isNaN(CustomText.word) &&
+    isNaN(CustomText.time) &&
+    (CustomText.isTimeRandom || CustomText.isWordRandom)
   ) {
     Notifications.add(
       "You need to specify word count or time in seconds to start a random custom test.",
@@ -4308,9 +3681,9 @@ $("#customTextPopup .button").click(() => {
   }
 
   if (
-    !isNaN(customText.word) &&
-    !isNaN(customText.time) &&
-    (customText.isTimeRandom || customText.isWordRandom)
+    !isNaN(CustomText.word) &&
+    !isNaN(CustomText.time) &&
+    (CustomText.isTimeRandom || CustomText.isWordRandom)
   ) {
     Notifications.add(
       "You need to pick between word count or time in seconds to start a random custom test.",
@@ -4321,8 +3694,8 @@ $("#customTextPopup .button").click(() => {
   }
 
   if (
-    (customText.isWordRandom && parseInt(customText.word) === 0) ||
-    (customText.isTimeRandom && parseInt(customText.time) === 0)
+    (CustomText.isWordRandom && parseInt(CustomText.word) === 0) ||
+    (CustomText.isTimeRandom && parseInt(CustomText.time) === 0)
   ) {
     Notifications.add(
       "Infinite words! Make sure to use Bail Out from the command line to save your result.",
@@ -4338,18 +3711,18 @@ $("#customTextPopup .button").click(() => {
 
 function showCustomMode2Popup(mode) {
   if ($("#customMode2PopupWrapper").hasClass("hidden")) {
+    if (mode == "time") {
+      $("#customMode2Popup .title").text("Test length");
+      $("#customMode2Popup").attr("mode", "time");
+    } else if (mode == "words") {
+      $("#customMode2Popup .title").text("Word amount");
+      $("#customMode2Popup").attr("mode", "words");
+    }
     $("#customMode2PopupWrapper")
       .stop(true, true)
       .css("opacity", 0)
       .removeClass("hidden")
       .animate({ opacity: 1 }, 100, (e) => {
-        if (mode == "time") {
-          $("#customMode2Popup .text").text("Test length");
-          $("#customMode2Popup").attr("mode", "time");
-        } else if (mode == "words") {
-          $("#customMode2Popup .text").text("Word amount");
-          $("#customMode2Popup").attr("mode", "words");
-        }
         $("#customMode2Popup input").focus().select();
       });
   }
@@ -4372,24 +3745,61 @@ function hideCustomMode2Popup() {
   }
 }
 
-function playClickSound() {
-  if (config.playSoundOnClick === "off") return;
-  if (clickSounds === null) initClickSounds();
-
-  let rand = Math.floor(
-    Math.random() * clickSounds[config.playSoundOnClick].length
-  );
-  let randomSound = clickSounds[config.playSoundOnClick][rand];
-  randomSound.counter++;
-  if (randomSound.counter === 2) randomSound.counter = 0;
-  randomSound.sounds[randomSound.counter].currentTime = 0;
-  randomSound.sounds[randomSound.counter].play();
+async function showQuoteSearchPopup() {
+  if ($("#quoteSearchPopupWrapper").hasClass("hidden")) {
+    let quotes = await Misc.getQuotes(config.language);
+    let table = $("#quoteSearchPopup .searchResultTable");
+    let numberOfSearchResults = 0;
+    table.find("tbody").empty();
+    $("#quoteSearchPopup input").val("");
+    for (let i = 0; i < 5; i++) {
+      let quote = quotes.quotes[i];
+      table.find("tbody").append(`
+      <tr class="searchResult" id=${quote.id}>
+              <td class="alignRight"><div class="fixedHeight">${quote.id}</div></td>
+              <td class="alignRight"><div class="fixedHeight">${quote.length}</div></td>
+              <td>
+                <div class="fixedHeight">${quote.text}</div>
+              </td>
+              <td>
+              <div class="fixedHeight">${quote.source}</div>
+              </td>
+              <td><i class="fas fa-chevron-right"></i></td>
+            </tr>
+      `);
+    }
+    quotes.groups.forEach((group) => {
+      group.forEach((quote) => {
+        numberOfSearchResults++;
+      });
+    });
+    document.getElementById("extraResults").innerHTML =
+      numberOfSearchResults - 5 + " more results";
+    $("#quoteSearchPopupWrapper")
+      .stop(true, true)
+      .css("opacity", 0)
+      .removeClass("hidden")
+      .animate({ opacity: 1 }, 100, (e) => {
+        $("#quoteSearchPopup input").focus().select();
+      });
+  }
 }
 
-function playErrorSound() {
-  if (!config.playSoundOnError) return;
-  errorSound.currentTime = 0;
-  errorSound.play();
+function hideQuoteSearchPopup() {
+  if (!$("#quoteSearchPopupWrapper").hasClass("hidden")) {
+    $("#quoteSearchPopupWrapper")
+      .stop(true, true)
+      .css("opacity", 1)
+      .animate(
+        {
+          opacity: 0,
+        },
+        100,
+        (e) => {
+          $("#quoteSearchPopupWrapper").addClass("hidden");
+        }
+      );
+  }
 }
 
 async function initPaceCaret() {
@@ -4405,7 +3815,7 @@ async function initPaceCaret() {
   }
   let wpm;
   if (config.paceCaret === "pb") {
-    wpm = await db_getLocalPB(
+    wpm = await DB.getLocalPB(
       config.mode,
       mode2,
       config.punctuation,
@@ -4423,7 +3833,7 @@ async function initPaceCaret() {
     } else if (config.mode === "quote") {
       mode2 = randomQuote.id;
     }
-    wpm = await db_getUserAverageWpm10(
+    wpm = await DB.getUserAverageWpm10(
       config.mode,
       mode2,
       config.punctuation,
@@ -4455,7 +3865,13 @@ async function initPaceCaret() {
     timeout: null,
   };
 
-  updateTestModesNotice();
+  updateTestModesNotice(
+    sameWordset,
+    textHasTab,
+    paceCaret,
+    activeFunBox,
+    config
+  );
 }
 
 function movePaceCaret(expectedStepEnd) {
@@ -4518,20 +3934,17 @@ function movePaceCaret(expectedStepEnd) {
     let newTop;
     let newLeft;
     try {
+      let newIndex =
+        paceCaret.currentWordIndex -
+        (currentWordIndex - currentWordElementIndex);
       if (paceCaret.currentLetterIndex === -1) {
         currentLetter = document
           .querySelectorAll("#words .word")
-          [
-            paceCaret.currentWordIndex -
-              (currentWordIndex - currentWordElementIndex)
-          ].querySelectorAll("letter")[0];
+          [newIndex].querySelectorAll("letter")[0];
       } else {
         currentLetter = document
           .querySelectorAll("#words .word")
-          [
-            paceCaret.currentWordIndex -
-              (currentWordIndex - currentWordElementIndex)
-          ].querySelectorAll("letter")[paceCaret.currentLetterIndex];
+          [newIndex].querySelectorAll("letter")[paceCaret.currentLetterIndex];
       }
       newTop = currentLetter.offsetTop - $(currentLetter).height() / 20;
       newLeft;
@@ -4620,9 +4033,139 @@ $("#customMode2Popup input").keypress((e) => {
     applyMode2Popup();
   }
 });
+//Quote search
+$("#quoteSearchPopup .searchBox").keydown((e) => {
+  setTimeout(async () => {
+    let quotes = await Misc.getQuotes(config.language);
+    let searchText = document.getElementById("searchBox").value;
+    searchText = searchText
+      .replace(/[.,'"/#!$%^&*;:{}=\-_`~()]/g, "")
+      .replace(/[-[\]{}()*+?.,\\^$|#\s]/g, "\\$&");
+    let reg = new RegExp(searchText, "i");
+    let found = [];
+    let numberOfSearchResults = 0;
+    quotes.quotes.forEach((quote) => {
+      let quoteText = quote["text"].replace(/[.,'"/#!$%^&*;:{}=\-_`~()]/g, "");
+      let quoteSource = quote["source"].replace(
+        /[.,'"/#!$%^&*;:{}=\-_`~()]/g,
+        ""
+      );
+      let quoteId = quote["id"];
+      let test1 = reg.test(quoteText);
+      let test2 = reg.test(quoteSource);
+      let test3 = reg.test(quoteId);
+
+      if (test1 || test2 || test3) {
+        found.push(quote);
+        numberOfSearchResults++;
+      }
+    });
+    let table = $("#quoteSearchPopup .searchResultTable");
+    table.find("tbody").empty();
+    for (let i = 0; i < 5; i++) {
+      if (found[i] === undefined) continue;
+      // if(found[i].text.length > 100){
+      //   found[i].text = found[i].text.substring(0, 100) + "...";
+      // }
+      // if(found[i].source.length > 50){
+      //   found[i].source = found[i].source.substring(0, 50) + "...";
+      // }
+      table.find("tbody").append(`
+      <tr class="searchResult" id=${found[i].id}>
+              <td class="alignRight"><div class="fixedHeight">${found[i].id}</div></td>
+              <td class="alignRight"><div class="fixedHeight">${found[i].length}</div></td>
+              <td>
+                <div class="fixedHeight">${found[i].text}</div>
+              </td>
+              <td>
+              <div class="fixedHeight">${found[i].source}</div>
+              </td>
+              <td><i class="fas fa-chevron-right"></i></td>
+            </tr>
+      `);
+    }
+    if (numberOfSearchResults > 5) {
+      $("#extraResults").css("opacity", "1");
+      document.getElementById("extraResults").innerHTML =
+        numberOfSearchResults - 5 + " more results";
+    } else if (numberOfSearchResults < 5) {
+      $("#extraResults").css("opacity", "1");
+      document.getElementById("extraResults").innerHTML = "No other results";
+      for (let i = 0; i < 5 - numberOfSearchResults; i++) {
+        table.find("tbody").append(`
+          <tr class="fillerResult" id="">
+              <td class="alignRight"><div class="fixedHeight">-</div></td>
+              <td class="alignRight"><div class="fixedHeight">-</div></td>
+              <td>
+                <div class="fixedHeight">-</div>
+              </td>
+              <td>
+              <div class="fixedHeight">-</div>
+              </td>
+              <td></td>
+            </tr>
+      `);
+      }
+    }
+    if (numberOfSearchResults == 0) {
+      $("#extraResults").css("opacity", "1");
+      document.getElementById("extraResults").innerHTML = "No search results";
+    }
+  }, 0.1); //arbitrarily v. small time as it's only to allow text to input before searching
+});
+//sets quote id to searched quote clicked
+$("#quoteSearchResults").click((e) => {
+  if ($(e.target).hasClass("quoteSearchButton")) {
+    document.getElementById("inputNumber").value = e.target.getAttribute("id");
+    applyMode2Popup();
+  }
+});
+
+$("#quoteSearchPopupWrapper").click((e) => {
+  if ($(e.target).attr("id") === "quoteSearchPopupWrapper") {
+    hideQuoteSearchPopup();
+  }
+});
 
 $("#customMode2Popup .button").click(() => {
   applyMode2Popup();
+});
+
+$("#quoteSearchPopup .button").click(() => {
+  if (!isNaN(document.getElementById("searchBox").value)) {
+    applyQuoteSearchPopup();
+  } else {
+    let results = document.getElementsByClassName("searchResult");
+    if (results.length > 0) {
+      selectedQuoteId = parseInt(results[0].getAttribute("id"));
+      applyQuoteSearchPopup(selectedQuoteId);
+    }
+  }
+});
+
+$(document).on(
+  "click",
+  "#quoteSearchPopup .searchResultTable tbody tr",
+  (e) => {
+    if ($(e.currentTarget).hasClass("searchResult")) {
+      selectedQuoteId = parseInt($(e.currentTarget).attr("id"));
+      applyQuoteSearchPopup(selectedQuoteId);
+    }
+  }
+);
+
+$("#quoteSearchPopup input").keypress((e) => {
+  if (e.keyCode == 13) {
+    if (!isNaN(document.getElementById("searchBox").value)) {
+      applyQuoteSearchPopup();
+    } else {
+      let results = document.getElementsByClassName("searchResult");
+      if (results.length > 0) {
+        selectedQuoteId = parseInt(results[0].getAttribute("id"));
+        applyQuoteSearchPopup(selectedQuoteId);
+      }
+    }
+  }
 });
 
 function updateKeytips() {
@@ -4688,6 +4231,21 @@ function applyMode2Popup() {
   }
 
   hideCustomMode2Popup();
+}
+
+function applyQuoteSearchPopup(val) {
+  if (isNaN(val)) {
+    val = document.getElementById("searchBox").value;
+  }
+  if (val !== null && !isNaN(val) && val >= 0) {
+    setQuoteLength(-2, false, false);
+    selectedQuoteId = val;
+    manualRestart = true;
+    restartTest();
+  } else {
+    Notifications.add("Quote ID must be at least 1", 0);
+  }
+  hideQuoteSearchPopup();
 }
 
 function lineJump(currentTop) {
@@ -4783,9 +4341,17 @@ $(document).on("click", "#top .config .time .text-button", (e) => {
 
 $(document).on("click", "#top .config .quoteLength .text-button", (e) => {
   let len = $(e.currentTarget).attr("quoteLength");
-  setQuoteLength(len);
-  manualRestart = true;
-  restartTest();
+  if (len == -2) {
+    showQuoteSearchPopup();
+    setQuoteLength(len, false, e.shiftKey);
+  } else {
+    if (len == -1) {
+      len = [0, 1, 2, 3];
+    }
+    setQuoteLength(len, false, e.shiftKey);
+    manualRestart = true;
+    restartTest();
+  }
 });
 
 $(document).on("click", "#top .config .customText .text-button", () => {
@@ -4821,7 +4387,7 @@ $(document).on("click", "#top .config .mode .text-button", (e) => {
 $(document).on("click", "#top #menu .icon-button", (e) => {
   if ($(e.currentTarget).hasClass("discord")) return;
   if ($(e.currentTarget).hasClass("leaderboards")) {
-    showLeaderboards();
+    Leaderboards.show();
   } else {
     const href = $(e.currentTarget).attr("href");
     manualRestart = true;
@@ -4875,6 +4441,10 @@ $(document.body).on("click", "#restartTestButton", () => {
 });
 
 function initPractiseMissedWords() {
+  if (Object.keys(TestStats.missedWords).length == 0) {
+    Notifications.add("You haven't missed any words.", 0);
+    return;
+  }
   let mode = modeBeforePractise === null ? config.mode : modeBeforePractise;
   let punctuation =
     punctuationBeforePractise === null
@@ -4884,14 +4454,14 @@ function initPractiseMissedWords() {
     numbersBeforePractise === null ? config.numbers : numbersBeforePractise;
   setMode("custom");
   let newCustomText = [];
-  Object.keys(missedWords).forEach((missedWord) => {
-    for (let i = 0; i < missedWords[missedWord]; i++) {
+  Object.keys(TestStats.missedWords).forEach((missedWord) => {
+    for (let i = 0; i < TestStats.missedWords[missedWord]; i++) {
       newCustomText.push(missedWord);
     }
   });
-  customText.text = newCustomText;
-  customText.isWordRandom = true;
-  customText.word = 50;
+  CustomText.setText(newCustomText);
+  CustomText.setIsWordRandom(true);
+  CustomText.setWord(50);
 
   modeBeforePractise = null;
   punctuationBeforePractise = null;
@@ -4904,20 +4474,12 @@ function initPractiseMissedWords() {
 
 $(document).on("keypress", "#practiseMissedWordsButton", (event) => {
   if (event.keyCode == 13) {
-    if (Object.keys(missedWords).length > 0) {
-      initPractiseMissedWords();
-    } else {
-      Notifications.add("You haven't missed any words.", 0);
-    }
+    initPractiseMissedWords();
   }
 });
 
 $(document.body).on("click", "#practiseMissedWordsButton", () => {
-  if (Object.keys(missedWords).length > 0) {
-    initPractiseMissedWords();
-  } else {
-    Notifications.add("You haven't missed any words.", 0);
-  }
+  initPractiseMissedWords();
 });
 
 $(document).on("keypress", "#nextTestButton", (event) => {
@@ -5021,38 +4583,22 @@ $("#wordsInput").keypress((event) => {
   event.preventDefault();
 });
 
-let outOfFocusTimeouts = [];
-
-function clearTimeouts(timeouts) {
-  timeouts.forEach((to) => {
-    clearTimeout(to);
-    to = null;
-  });
-}
-
 $("#wordsInput").on("focus", () => {
   if (!resultVisible && config.showOutOfFocusWarning) {
-    $("#words").css("transition", "none").removeClass("blurred");
-    $(".outOfFocusWarning").addClass("hidden");
-    clearTimeouts(outOfFocusTimeouts);
+    OutOfFocus.hide();
   }
-  showCaret();
+  Caret.show(config);
 });
 
 $("#wordsInput").on("focusout", () => {
   if (!resultVisible && config.showOutOfFocusWarning) {
-    outOfFocusTimeouts.push(
-      setTimeout(() => {
-        $("#words").css("transition", "0.25s").addClass("blurred");
-        $(".outOfFocusWarning").removeClass("hidden");
-      }, 1000)
-    );
+    OutOfFocus.show();
   }
-  hideCaret();
+  Caret.hide();
 });
 
 $(window).resize(() => {
-  updateCaretPosition();
+  Caret.updatePosition(currentInput, config);
 });
 
 $(document).mousemove(function (event) {
@@ -5089,11 +4635,13 @@ $(document).keyup((event) => {
 
   if (resultVisible) return;
   let now = performance.now();
-  let diff = Math.abs(keypressStats.duration.current - now);
-  if (keypressStats.duration.current !== -1) {
-    keypressStats.duration.array.push(diff);
+  let diff = Math.abs(TestStats.keypressTimings.duration.current - now);
+  if (TestStats.keypressTimings.duration.current !== -1) {
+    TestStats.pushKeypressDuration(diff);
+    // keypressStats.duration.array.push(diff);
   }
-  keypressStats.duration.current = now;
+  TestStats.setKeypressDuration(now);
+  // keypressStats.duration.current = now;
   Monkey.stop();
 });
 
@@ -5102,11 +4650,13 @@ $(document).keydown(function (event) {
 
   if (!resultVisible) {
     let now = performance.now();
-    let diff = Math.abs(keypressStats.spacing.current - now);
-    if (keypressStats.spacing.current !== -1) {
-      keypressStats.spacing.array.push(diff);
+    let diff = Math.abs(TestStats.keypressTimings.spacing.current - now);
+    if (TestStats.keypressTimings.spacing.current !== -1) {
+      TestStats.pushKeypressSpacing(diff);
+      // keypressStats.spacing.array.push(diff);
     }
-    keypressStats.spacing.current = now;
+    TestStats.setKeypressSpacing(now);
+    // keypressStats.spacing.current = now;
   }
 
   Monkey.type();
@@ -5117,7 +4667,8 @@ $(document).keydown(function (event) {
   let wordsFocused = $("#wordsInput").is(":focus");
   let modePopupVisible =
     !$("#customTextPopupWrapper").hasClass("hidden") ||
-    !$("#customMode2PopupWrapper").hasClass("hidden");
+    !$("#customMode2PopupWrapper").hasClass("hidden") ||
+    !$("#quoteSearchPopupWrapper").hasClass("hidden");
   if (
     pageTestActive &&
     !commandLineVisible &&
@@ -5128,7 +4679,7 @@ $(document).keydown(function (event) {
   ) {
     focusWords();
     wordsFocused = true;
-    if (config.showOutOfFocusWarning) return;
+    // if (config.showOutOfFocusWarning) return;
   }
 
   //tab
@@ -5152,7 +4703,8 @@ $(document).keydown(function (event) {
     }
   }
 
-  keypressStats.duration.current = performance.now();
+  // keypressStats.duration.current = performance.now();
+  TestStats.setKeypressDuration(performance.now());
   try {
     if (
       !config.capsLockBackspace &&
@@ -5189,11 +4741,7 @@ $(document).keydown(function (event) {
     handleAlpha(event);
   }
 
-  let acc = Misc.roundTo2(
-    (accuracyStats.correct /
-      (accuracyStats.correct + accuracyStats.incorrect)) *
-      100
-  );
+  let acc = Misc.roundTo2(TestStats.calculateAccuracy());
   updateLiveAcc(acc);
 });
 
@@ -5229,6 +4777,7 @@ function handleTab(event) {
   ) {
     if (config.quickTab) {
       if (config.mode == "zen" && !event.shiftKey) {
+        //ignore
       } else {
         if (event.shiftKey) manualRestart = true;
 
@@ -5277,14 +4826,14 @@ function handleTab(event) {
   //       (config.mode === "time" && config.time < 3600) ||
   //       config.mode === "quote" ||
   //       (config.mode === "custom" &&
-  //         customText.isWordRandom &&
-  //         customText.word < 1000) ||
+  //         CustomText.isWordRandom &&
+  //         CustomText.word < 1000) ||
   //       (config.mode === "custom" &&
-  //         customText.isTimeRandom &&
-  //         customText.time < 3600) ||
+  //         CustomText.isTimeRandom &&
+  //         CustomText.time < 3600) ||
   //       (config.mode === "custom" &&
-  //         !customText.isWordRandom &&
-  //         customText.text.length < 1000)
+  //         !CustomText.isWordRandom &&
+  //         CustomText.text.length < 1000)
   //     ) {
   //       if (testActive) {
   //         let testNow = performance.now();
@@ -5375,19 +4924,19 @@ function handleBackspace(event) {
     }
     updateWordElement(!config.blindMode);
   }
-  playClickSound();
+  Sound.playClick(config.playSoundOnClick);
   if (config.keymapMode === "react") {
     flashPressedKeymapKey(event.code, true);
   } else if (config.keymapMode === "next") {
     updateHighlightedKeymapKey();
   }
-  updateCaretPosition();
+  Caret.updatePosition(currentInput, config);
 }
 
 function handleSpace(event, isEnter) {
   if (!testActive) return;
   if (currentInput === "") return;
-  let nextWord = wordsList[currentWordIndex + 1];
+  // let nextWord = wordsList[currentWordIndex + 1];
   // if ((isEnter && nextWord !== "\n") && (isEnter && activeFunBox !== "58008")) return;
   // if (!isEnter && nextWord === "\n") return;
   event.preventDefault();
@@ -5422,17 +4971,19 @@ function handleSpace(event, isEnter) {
       paceCaret.wordsStatus[currentWordIndex] = undefined;
       paceCaret.correction -= currentWord.length + 1;
     }
-    accuracyStats.correct++;
+    TestStats.incrementAccuracy(true);
     inputHistory.push(currentInput);
     currentInput = "";
     currentWordIndex++;
     currentWordElementIndex++;
     updateActiveElement();
-    updateCaretPosition();
-    currentKeypress.count++;
-    currentKeypress.words.push(currentWordIndex);
+    Caret.updatePosition(currentInput, config);
+    TestStats.incrementKeypressCount();
+    TestStats.pushKeypressWord(currentWordIndex);
+    // currentKeypress.count++;
+    // currentKeypress.words.push(currentWordIndex);
     if (activeFunBox !== "nospace") {
-      playClickSound();
+      Sound.playClick(config.playSoundOnClick);
     }
   } else {
     //incorrect word
@@ -5446,12 +4997,13 @@ function handleSpace(event, isEnter) {
     }
     if (activeFunBox !== "nospace") {
       if (!config.playSoundOnError || config.blindMode) {
-        playClickSound();
+        Sound.playClick(config.playSoundOnClick);
       } else {
-        playErrorSound();
+        Sound.playError(config.playSoundOnError);
       }
     }
-    accuracyStats.incorrect++;
+    TestStats.incrementAccuracy(false);
+    TestStats.incrementKeypressErrors();
     let cil = currentInput.length;
     if (cil <= wordsList[currentWordIndex].length) {
       if (cil >= currentCorrected.length) {
@@ -5472,7 +5024,7 @@ function handleSpace(event, isEnter) {
       if (config.stopOnError == "word") {
         currentInput += " ";
         updateWordElement(true);
-        updateCaretPosition();
+        Caret.updatePosition(currentInput, config);
       }
       return;
     }
@@ -5483,15 +5035,17 @@ function handleSpace(event, isEnter) {
     currentWordIndex++;
     currentWordElementIndex++;
     updateActiveElement();
-    updateCaretPosition();
-    currentKeypress.count++;
-    currentKeypress.words.push(currentWordIndex);
+    Caret.updatePosition(currentInput, config);
+    // currentKeypress.count++;
+    // currentKeypress.words.push(currentWordIndex);
+    TestStats.incrementKeypressCount();
+    TestStats.pushKeypressWord(currentWordIndex);
     if (config.difficulty == "expert" || config.difficulty == "master") {
       failTest();
       return;
     } else if (currentWordIndex == wordsList.length) {
       //submitted last word that is incorrect
-      lastSecondNotRound = true;
+      TestStats.setLastSecondNotRound();
       showResult();
       return;
     }
@@ -5503,8 +5057,8 @@ function handleSpace(event, isEnter) {
   if (
     !config.showAllLines ||
     config.mode == "time" ||
-    (customText.isWordRandom && customText.word == 0) ||
-    customText.isTimeRandom
+    (CustomText.isWordRandom && CustomText.word == 0) ||
+    CustomText.isTimeRandom
   ) {
     let currentTop = Math.floor(
       document.querySelectorAll("#words .word")[currentWordElementIndex - 1]
@@ -5525,7 +5079,7 @@ function handleSpace(event, isEnter) {
     }
   } //end of line wrap
 
-  updateCaretPosition();
+  Caret.updatePosition(currentInput, config);
 
   if (config.keymapMode === "react") {
     flashPressedKeymapKey(event.code, true);
@@ -5592,7 +5146,8 @@ function handleAlpha(event) {
       undefined,
     ].includes(event.key)
   ) {
-    currentKeypress.mod++;
+    TestStats.incrementKeypressMod();
+    // currentKeypress.mod++;
     return;
   }
 
@@ -5646,6 +5201,9 @@ function handleAlpha(event) {
   )
     return;
   if (event.metaKey) return;
+
+  let originalEvent = event;
+
   event = emulateLayout(event);
 
   //start the test
@@ -5656,11 +5214,11 @@ function handleAlpha(event) {
   }
 
   setFocus(true);
-  stopCaretAnimation();
+  Caret.stopAnimation();
 
   //show dead keys
   if (event.key === "Dead") {
-    playClickSound();
+    Sound.playClick(config.playSoundOnClick);
     $(
       document.querySelector("#words .word.active").querySelectorAll("letter")[
         currentInput.length
@@ -5728,18 +5286,22 @@ function handleAlpha(event) {
     thisCharCorrect = true;
   }
 
-  if (!thisCharCorrect) {
-    accuracyStats.incorrect++;
-    currentError.count++;
-    currentError.words.push(currentWordIndex);
+  if (
+    config.oppositeShiftMode === "on" &&
+    ShiftTracker.isUsingOppositeShift(originalEvent) === false
+  ) {
     thisCharCorrect = false;
-    if (!Object.keys(missedWords).includes(wordsList[currentWordIndex])) {
-      missedWords[wordsList[currentWordIndex]] = 1;
-    } else {
-      missedWords[wordsList[currentWordIndex]]++;
-    }
+  }
+
+  if (!thisCharCorrect) {
+    TestStats.incrementAccuracy(false);
+    TestStats.incrementKeypressErrors();
+    // currentError.count++;
+    // currentError.words.push(currentWordIndex);
+    thisCharCorrect = false;
+    TestStats.pushMissedWord(wordsList[currentWordIndex]);
   } else {
-    accuracyStats.correct++;
+    TestStats.incrementAccuracy(true);
     thisCharCorrect = true;
     if (config.mode == "zen") {
       //making the input visible to the user
@@ -5750,14 +5312,20 @@ function handleAlpha(event) {
   }
 
   if (thisCharCorrect) {
-    playClickSound();
+    Sound.playClick(config.playSoundOnClick);
   } else {
     if (!config.playSoundOnError || config.blindMode) {
-      playClickSound();
+      Sound.playClick(config.playSoundOnClick);
     } else {
-      playErrorSound();
+      Sound.playError(config.playSoundOnError);
     }
   }
+
+  if (
+    config.oppositeShiftMode === "on" &&
+    ShiftTracker.isUsingOppositeShift(originalEvent) === false
+  )
+    return;
 
   //update current corrected verison. if its empty then add the current key. if its not then replace the last character with the currently pressed one / add it
   if (currentCorrected === "") {
@@ -5773,9 +5341,10 @@ function handleAlpha(event) {
         currentCorrected.substring(cil + 1);
     }
   }
-
-  currentKeypress.count++;
-  currentKeypress.words.push(currentWordIndex);
+  TestStats.incrementKeypressCount();
+  TestStats.pushKeypressWord(currentWordIndex);
+  // currentKeypress.count++;
+  // currentKeypress.words.push(currentWordIndex);
 
   if (config.stopOnError == "letter" && !thisCharCorrect) {
     return;
@@ -5825,7 +5394,7 @@ function handleAlpha(event) {
       currentInput = "";
       correctedHistory.push(currentCorrected);
       currentCorrected = "";
-      lastSecondNotRound = true;
+      TestStats.setLastSecondNotRound();
       showResult();
     }
   }
@@ -5866,7 +5435,7 @@ function handleAlpha(event) {
     }
   }
 
-  updateCaretPosition();
+  Caret.updatePosition(currentInput, config);
 }
 
 window.addEventListener("beforeunload", (event) => {
@@ -5876,15 +5445,16 @@ window.addEventListener("beforeunload", (event) => {
     (config.mode === "time" && config.time < 3600) ||
     config.mode === "quote" ||
     (config.mode === "custom" &&
-      customText.isWordRandom &&
-      customText.word < 1000) ||
+      CustomText.isWordRandom &&
+      CustomText.word < 1000) ||
     (config.mode === "custom" &&
-      customText.isTimeRandom &&
-      customText.time < 1000) ||
+      CustomText.isTimeRandom &&
+      CustomText.time < 1000) ||
     (config.mode === "custom" &&
-      !customText.isWordRandom &&
-      customText.text.length < 1000)
+      !CustomText.isWordRandom &&
+      CustomText.text.length < 1000)
   ) {
+    //ignore
   } else {
     if (testActive) {
       event.preventDefault();
@@ -5917,7 +5487,7 @@ if (window.location.hostname === "localhost") {
 manualRestart = true;
 
 let configLoadDone;
-let configLoadPromise = new Promise((v, x) => {
+let configLoadPromise = new Promise((v) => {
   configLoadDone = v;
 });
 loadConfigFromCookie();
@@ -5939,10 +5509,10 @@ $(document).on("mouseenter", "#resultWordsHistory .words .word", (e) => {
 
 $(document).on("click", "#bottom .leftright .right .current-theme", (e) => {
   if (e.shiftKey) {
-    togglePresetCustomTheme();
+    toggleCustomTheme();
   } else {
     // if (config.customTheme) {
-    //   togglePresetCustomTheme();
+    //   toggleCustomTheme();
     // }
     currentCommands.push(commandsThemes);
     showCommandLine();
@@ -5983,7 +5553,6 @@ $(document).ready(() => {
   if (window.location.pathname === "/") {
     $("#top .config").removeClass("hidden");
   }
-  updateFavicon(32, 14);
   $("body").css("transition", ".25s");
   if (config.quickTab) {
     $("#restartTestButton").addClass("hidden");
@@ -6086,9 +5655,9 @@ async function setupChallenge(challengeName) {
       setMode("words", true);
       setDifficulty("normal", true);
     } else if (challenge.type === "customText") {
-      customText.text = challenge.parameters[0].split(" ");
-      customText.isWordRandom = challenge.parameters[1];
-      customText.word = parseInt(challenge.parameters[2]);
+      CustomText.setText(challenge.parameters[0].split(" "));
+      CustomText.setIsWordRandom(challenge.parameters[1]);
+      CustomText.setWord(parseInt(challenge.parameters[2]));
       setMode("custom", true);
       setDifficulty("normal", true);
     } else if (challenge.type === "script") {
@@ -6097,8 +5666,8 @@ async function setupChallenge(challengeName) {
       let text = scriptdata.trim();
       text = text.replace(/[\n\r\t ]/gm, " ");
       text = text.replace(/ +/gm, " ");
-      customText.text = text.split(" ");
-      customText.isWordRandom = false;
+      CustomText.setText(text.split(" "));
+      CustomText.setIsWordRandom(false);
       setMode("custom", true);
       setDifficulty("normal", true);
       if (challenge.parameters[1] != null) {
@@ -6139,155 +5708,3 @@ async function setupChallenge(challengeName) {
     Notifications.add("Something went wrong: " + e, -1);
   }
 }
-
-let ctx = $("#wpmChart");
-let wpmOverTimeChart = new Chart(ctx, {
-  type: "line",
-  data: {
-    labels: [],
-    datasets: [
-      {
-        label: "wpm",
-        data: [],
-        borderColor: "rgba(125, 125, 125, 1)",
-        borderWidth: 2,
-        yAxisID: "wpm",
-        order: 2,
-        radius: 2,
-      },
-      {
-        label: "raw",
-        data: [],
-        borderColor: "rgba(125, 125, 125, 1)",
-        borderWidth: 2,
-        yAxisID: "raw",
-        order: 3,
-        radius: 2,
-      },
-      {
-        label: "errors",
-        data: [],
-        borderColor: "rgba(255, 125, 125, 1)",
-        pointBackgroundColor: "rgba(255, 125, 125, 1)",
-        borderWidth: 2,
-        order: 1,
-        yAxisID: "error",
-        maxBarThickness: 10,
-        type: "scatter",
-        pointStyle: "crossRot",
-        radius: function (context) {
-          var index = context.dataIndex;
-          var value = context.dataset.data[index];
-          return value <= 0 ? 0 : 3;
-        },
-        pointHoverRadius: function (context) {
-          var index = context.dataIndex;
-          var value = context.dataset.data[index];
-          return value <= 0 ? 0 : 5;
-        },
-      },
-    ],
-  },
-  options: {
-    tooltips: {
-      mode: "index",
-      intersect: false,
-      callbacks: {
-        afterLabel: function (ti, data) {
-          try {
-            $(".wordInputAfter").remove();
-
-            let wordsToHighlight =
-              keypressPerSecond[parseInt(ti.xLabel) - 1].words;
-
-            let unique = [...new Set(wordsToHighlight)];
-            unique.forEach((wordIndex) => {
-              let wordEl = $($("#resultWordsHistory .words .word")[wordIndex]);
-              let input = wordEl.attr("input");
-              if (input != undefined)
-                wordEl.append(`<div class="wordInputAfter">${input}</div>`);
-            });
-          } catch (e) {}
-        },
-      },
-    },
-    legend: {
-      display: false,
-      labels: {},
-    },
-    responsive: true,
-    maintainAspectRatio: false,
-    scales: {
-      xAxes: [
-        {
-          ticks: {
-            autoSkip: true,
-            autoSkipPadding: 40,
-          },
-          display: true,
-          scaleLabel: {
-            display: false,
-            labelString: "Seconds",
-          },
-        },
-      ],
-      yAxes: [
-        {
-          id: "wpm",
-          display: true,
-          scaleLabel: {
-            display: true,
-            labelString: "Words per Minute",
-          },
-          ticks: {
-            beginAtZero: true,
-            min: 0,
-            autoSkip: true,
-            autoSkipPadding: 40,
-          },
-          gridLines: {
-            display: true,
-          },
-        },
-        {
-          id: "raw",
-          display: false,
-          scaleLabel: {
-            display: true,
-            labelString: "Raw Words per Minute",
-          },
-          ticks: {
-            beginAtZero: true,
-            min: 0,
-            autoSkip: true,
-            autoSkipPadding: 40,
-          },
-          gridLines: {
-            display: false,
-          },
-        },
-        {
-          id: "error",
-          display: true,
-          position: "right",
-          scaleLabel: {
-            display: true,
-            labelString: "Errors",
-          },
-          ticks: {
-            precision: 0,
-            beginAtZero: true,
-            autoSkip: true,
-            autoSkipPadding: 40,
-          },
-          gridLines: {
-            display: false,
-          },
-        },
-      ],
-    },
-    annotation: {
-      annotations: [],
-    },
-  },
-});

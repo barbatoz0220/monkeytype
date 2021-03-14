@@ -23,7 +23,7 @@ let defaultConfig = {
   words: 50,
   time: 30,
   mode: "time",
-  quoteLength: 1,
+  quoteLength: [1],
   language: "english",
   fontSize: 15,
   freedomMode: false,
@@ -76,6 +76,7 @@ let defaultConfig = {
   showLiveAcc: false,
   monkey: false,
   repeatQuotes: "off",
+  oppositeShiftMode: "off",
 };
 
 let cookieConfig = null;
@@ -101,7 +102,7 @@ async function saveConfigToCookie(noDbCheck = false) {
   let save = config;
   delete save.resultFilters;
   Misc.setCookie("config", JSON.stringify(save), 365);
-  restartCount = 0;
+  // restartCount = 0;
   if (!noDbCheck) await saveConfigToDB();
 }
 
@@ -113,8 +114,7 @@ async function saveConfigToDB() {
       obj: config,
     }).then((d) => {
       accountIconLoading(false);
-      if (d.data.returnCode === 1) {
-      } else {
+      if (d.data.returnCode !== 1) {
         Notifications.add(`Error saving config to DB! ${d.data.message}`, 4000);
       }
       return;
@@ -153,7 +153,7 @@ function saveActiveTagsToCookie() {
   let tags = [];
 
   try {
-    db_getSnapshot().tags.forEach((tag) => {
+    DB.getSnapshot().tags.forEach((tag) => {
       if (tag.active === true) {
         tags.push(tag.id);
       }
@@ -206,8 +206,7 @@ function setPlaySoundOnClick(val, nosave) {
     val = "off";
   }
   config.playSoundOnClick = val;
-  if (clickSounds === null && config.playSoundOnClick !== "off")
-    initClickSounds();
+  if (config.playSoundOnClick !== "off") Sound.init();
   if (!nosave) saveConfigToCookie();
 }
 
@@ -228,7 +227,13 @@ function setDifficulty(diff, nosave) {
   }
   config.difficulty = diff;
   if (!nosave) restartTest(false, nosave);
-  updateTestModesNotice();
+  updateTestModesNotice(
+    sameWordset,
+    textHasTab,
+    paceCaret,
+    activeFunBox,
+    config
+  );
   if (!nosave) saveConfigToCookie();
 }
 
@@ -248,7 +253,13 @@ function toggleBlindMode() {
     blind = false;
   }
   config.blindMode = blind;
-  updateTestModesNotice();
+  updateTestModesNotice(
+    sameWordset,
+    textHasTab,
+    paceCaret,
+    activeFunBox,
+    config
+  );
   saveConfigToCookie();
 }
 
@@ -257,25 +268,32 @@ function setBlindMode(blind, nosave) {
     blind = false;
   }
   config.blindMode = blind;
-  updateTestModesNotice();
+  updateTestModesNotice(
+    sameWordset,
+    textHasTab,
+    paceCaret,
+    activeFunBox,
+    config
+  );
   if (!nosave) saveConfigToCookie();
 }
 
 function updateChartAccuracy() {
-  resultHistoryChart.data.datasets[1].hidden = !config.chartAccuracy;
-  resultHistoryChart.options.scales.yAxes[1].display = config.chartAccuracy;
-  resultHistoryChart.update();
+  ChartController.accountHistory.data.datasets[1].hidden = !config.chartAccuracy;
+  ChartController.accountHistory.options.scales.yAxes[1].display =
+    config.chartAccuracy;
+  ChartController.accountHistory.update();
 }
 
 function updateChartStyle() {
   if (config.chartStyle == "scatter") {
-    resultHistoryChart.data.datasets[0].showLine = false;
-    resultHistoryChart.data.datasets[1].showLine = false;
+    ChartController.accountHistory.data.datasets[0].showLine = false;
+    ChartController.accountHistory.data.datasets[1].showLine = false;
   } else {
-    resultHistoryChart.data.datasets[0].showLine = true;
-    resultHistoryChart.data.datasets[1].showLine = true;
+    ChartController.accountHistory.data.datasets[0].showLine = true;
+    ChartController.accountHistory.data.datasets[1].showLine = true;
   }
-  resultHistoryChart.update();
+  ChartController.accountHistory.update();
 }
 
 function toggleChartAccuracy() {
@@ -324,7 +342,13 @@ function setStopOnError(soe, nosave) {
   if (config.stopOnError !== "off") {
     config.confidenceMode = "off";
   }
-  updateTestModesNotice();
+  updateTestModesNotice(
+    sameWordset,
+    textHasTab,
+    paceCaret,
+    activeFunBox,
+    config
+  );
   if (!nosave) saveConfigToCookie();
 }
 
@@ -359,9 +383,7 @@ function setAlwaysShowCPM(val, nosave) {
 function toggleShowOutOfFocusWarning() {
   config.showOutOfFocusWarning = !config.showOutOfFocusWarning;
   if (!config.showOutOfFocusWarning) {
-    $("#words").css("transition", "none").removeClass("blurred");
-    $(".outOfFocusWarning").addClass("hidden");
-    clearTimeouts(outOfFocusTimeouts);
+    OutOfFocus.hide();
   }
   saveConfigToCookie();
 }
@@ -372,9 +394,7 @@ function setShowOutOfFocusWarning(val, nosave) {
   }
   config.showOutOfFocusWarning = val;
   if (!config.showOutOfFocusWarning) {
-    $("#words").css("transition", "none").removeClass("blurred");
-    $(".outOfFocusWarning").addClass("hidden");
-    clearTimeouts(outOfFocusTimeouts);
+    OutOfFocus.hide();
   }
   if (!nosave) saveConfigToCookie();
 }
@@ -405,7 +425,13 @@ function setPaceCaret(val, nosave) {
   //   val = "off";
   // }
   config.paceCaret = val;
-  updateTestModesNotice();
+  updateTestModesNotice(
+    sameWordset,
+    textHasTab,
+    paceCaret,
+    activeFunBox,
+    config
+  );
   initPaceCaret(nosave);
   if (!nosave) saveConfigToCookie();
 }
@@ -424,7 +450,13 @@ function setMinWpm(minwpm, nosave) {
     minwpm = "off";
   }
   config.minWpm = minwpm;
-  updateTestModesNotice();
+  updateTestModesNotice(
+    sameWordset,
+    textHasTab,
+    paceCaret,
+    activeFunBox,
+    config
+  );
   if (!nosave) saveConfigToCookie();
 }
 
@@ -442,7 +474,13 @@ function setMinAcc(min, nosave) {
     min = "off";
   }
   config.minAcc = min;
-  updateTestModesNotice();
+  updateTestModesNotice(
+    sameWordset,
+    textHasTab,
+    paceCaret,
+    activeFunBox,
+    config
+  );
   if (!nosave) saveConfigToCookie();
 }
 
@@ -581,6 +619,15 @@ function toggleStrictSpace() {
   saveConfigToCookie();
 }
 
+//opposite shift space
+function setOppositeShiftMode(val, nosave) {
+  if (val == undefined) {
+    val = "off";
+  }
+  config.oppositeShiftMode = val;
+  if (!nosave) saveConfigToCookie();
+}
+
 function setPageWidth(val, nosave) {
   if (val == null || val == undefined) {
     val = "100";
@@ -607,6 +654,7 @@ function setCaretStyle(caretStyle, nosave) {
   $("#caret").removeClass("underline");
   $("#caret").removeClass("outline");
   $("#caret").removeClass("block");
+  $("#caret").removeClass("carrot");
 
   if (caretStyle == "off") {
     $("#caret").addClass("off");
@@ -618,6 +666,8 @@ function setCaretStyle(caretStyle, nosave) {
     $("#caret").addClass("outline");
   } else if (caretStyle == "underline") {
     $("#caret").addClass("underline");
+  } else if (caretStyle == "carrot") {
+    $("#caret").addClass("carrot");
   }
   if (!nosave) saveConfigToCookie();
 }
@@ -794,8 +844,7 @@ function toggleKeyTips() {
 
 //mode
 function setTimeConfig(time, nosave) {
-  if (time !== null && !isNaN(time) && time >= 0) {
-  } else {
+  if (time === null || isNaN(time) || time < 0) {
     time = 15;
   }
   time = parseInt(time);
@@ -812,24 +861,34 @@ function setTimeConfig(time, nosave) {
 }
 
 //quote length
-function setQuoteLength(len, nosave) {
-  if (len !== null && !isNaN(len) && len >= -1 && len <= 3) {
+function setQuoteLength(len, nosave, multipleMode) {
+  if (Array.isArray(len)) {
+    //config load
+    config.quoteLength = len;
   } else {
-    len = 1;
+    if (!Array.isArray(config.quoteLength)) config.quoteLength = [];
+    if (len === null || isNaN(len) || len < -2 || len > 3) {
+      len = 1;
+    }
+    len = parseInt(len);
+    if (multipleMode) {
+      if (!config.quoteLength.includes(len)) config.quoteLength.push(len);
+    } else {
+      config.quoteLength = [len];
+    }
   }
-  len = parseInt(len);
-  if (!nosave) setMode("quote", nosave);
-  config.quoteLength = len;
+  // if (!nosave) setMode("quote", nosave);
   $("#top .config .quoteLength .text-button").removeClass("active");
-  $(
-    "#top .config .quoteLength .text-button[quoteLength='" + len + "']"
-  ).addClass("active");
+  config.quoteLength.forEach((ql) => {
+    $(
+      "#top .config .quoteLength .text-button[quoteLength='" + ql + "']"
+    ).addClass("active");
+  });
   if (!nosave) saveConfigToCookie();
 }
 
 function setWordCount(wordCount, nosave) {
-  if (wordCount !== null && !isNaN(wordCount) && wordCount >= 0) {
-  } else {
+  if (wordCount === null || isNaN(wordCount) || wordCount < 0) {
     wordCount = 10;
   }
   wordCount = parseInt(wordCount);
@@ -1023,7 +1082,13 @@ function setConfidenceMode(cm, nosave) {
     config.stopOnError = "off";
   }
 
-  updateTestModesNotice();
+  updateTestModesNotice(
+    sameWordset,
+    textHasTab,
+    paceCaret,
+    activeFunBox,
+    config
+  );
   if (!nosave) saveConfigToCookie();
 }
 
@@ -1044,133 +1109,11 @@ function setIndicateTypos(it, nosave) {
   if (!nosave) saveConfigToCookie();
 }
 
-function updateChartColors() {
-  hoverChart.options.scales.xAxes[0].ticks.minor.fontColor = themeColors.sub;
-  hoverChart.options.scales.xAxes[0].scaleLabel.fontColor = themeColors.sub;
-  hoverChart.options.scales.yAxes[0].ticks.minor.fontColor = themeColors.sub;
-  hoverChart.options.scales.yAxes[2].ticks.minor.fontColor = themeColors.sub;
-  hoverChart.options.scales.yAxes[0].scaleLabel.fontColor = themeColors.sub;
-  hoverChart.options.scales.yAxes[2].scaleLabel.fontColor = themeColors.sub;
-
-  hoverChart.data.datasets[0].borderColor = themeColors.main;
-  hoverChart.data.datasets[0].pointBackgroundColor = themeColors.main;
-  hoverChart.data.datasets[1].borderColor = themeColors.sub;
-  hoverChart.data.datasets[1].pointBackgroundColor = themeColors.sub;
-
-  hoverChart.options.annotation.annotations[0].borderColor = themeColors.sub;
-  hoverChart.options.annotation.annotations[0].label.backgroundColor =
-    themeColors.sub;
-  hoverChart.options.annotation.annotations[0].label.fontColor = themeColors.bg;
-
-  activityChart.options.legend.labels.fontColor = themeColors.sub;
-
-  activityChart.options.scales.xAxes[0].ticks.minor.fontColor = themeColors.sub;
-  activityChart.options.scales.yAxes[0].ticks.minor.fontColor = themeColors.sub;
-  activityChart.options.scales.yAxes[0].scaleLabel.fontColor = themeColors.sub;
-  activityChart.data.datasets[0].borderColor = themeColors.main;
-  activityChart.data.datasets[0].backgroundColor = themeColors.main;
-
-  activityChart.data.datasets[0].trendlineLinear.style = themeColors.sub;
-
-  activityChart.options.scales.yAxes[1].ticks.minor.fontColor = themeColors.sub;
-  activityChart.options.scales.yAxes[1].scaleLabel.fontColor = themeColors.sub;
-  activityChart.data.datasets[1].borderColor = themeColors.sub;
-
-  activityChart.options.legend.labels.fontColor = themeColors.sub;
-
-  resultHistoryChart.options.scales.xAxes[0].ticks.minor.fontColor =
-    themeColors.sub;
-  resultHistoryChart.options.scales.yAxes[0].ticks.minor.fontColor =
-    themeColors.sub;
-  resultHistoryChart.options.scales.yAxes[0].scaleLabel.fontColor =
-    themeColors.sub;
-  resultHistoryChart.options.scales.yAxes[1].ticks.minor.fontColor =
-    themeColors.sub;
-  resultHistoryChart.options.scales.yAxes[1].scaleLabel.fontColor =
-    themeColors.sub;
-  resultHistoryChart.data.datasets[0].borderColor = themeColors.main;
-  resultHistoryChart.data.datasets[1].borderColor = themeColors.sub;
-
-  resultHistoryChart.options.legend.labels.fontColor = themeColors.sub;
-  resultHistoryChart.data.datasets[0].trendlineLinear.style = themeColors.sub;
-  wpmOverTimeChart.data.datasets[0].borderColor = themeColors.main;
-  wpmOverTimeChart.data.datasets[0].pointBackgroundColor = themeColors.main;
-  wpmOverTimeChart.data.datasets[1].borderColor = themeColors.sub;
-  wpmOverTimeChart.data.datasets[1].pointBackgroundColor = themeColors.sub;
-
-  hoverChart.update();
-  wpmOverTimeChart.update();
-  resultHistoryChart.update();
-  activityChart.update();
-}
-
-function previewTheme(name, setIsPreviewingVar = true) {
-  if (
-    (testActive || resultVisible) &&
-    (config.theme === "nausea" || config.theme === "round_round_baby")
-  )
-    return;
-  if (resultVisible && (name === "nausea" || name === "round_round_baby"))
-    return;
-  isPreviewingTheme = setIsPreviewingVar;
-  clearCustomTheme();
-  $("#currentTheme").attr("href", `themes/${name}.css`);
-  setTimeout(() => {
-    refreshThemeColorObject();
-  }, 500);
-}
-
 function setTheme(name, nosave) {
-  if (
-    (testActive || resultVisible) &&
-    (config.theme === "nausea" || config.theme === "round_round_baby")
-  ) {
-    return;
-  }
-  if (resultVisible && (name === "nausea" || name === "round_round_baby"))
-    return;
   config.theme = name;
-  $(".keymap-key").attr("style", "");
-  $("#currentTheme").attr("href", `themes/${name}.css`);
-  $(".current-theme").text(name.replace("_", " "));
-  setTimeout(() => {
-    updateFavicon(32, 14);
-  }, 500);
-  try {
-    firebase.analytics().logEvent("changedTheme", {
-      theme: name,
-    });
-  } catch (e) {
-    console.log("Analytics unavailable");
-  }
   setCustomTheme(false, true);
-  clearCustomTheme();
-  // applyCustomThemeColors();
-  setTimeout(() => {
-    $(".keymap-key").attr("style", "");
-    refreshThemeColorObject();
-    $("#metaThemeColor").attr("content", themeColors.main);
-  }, 500);
+  ThemeController.set(config.theme);
   if (!nosave) saveConfigToCookie();
-}
-
-let randomTheme = null;
-function randomiseTheme() {
-  // var randomList = Misc.getThemesList().map((t) => {
-  //   return t.name;
-  // });
-  var randomList;
-  Misc.getThemesList().then((themes) => {
-    randomList = themes.map((t) => {
-      return t.name;
-    });
-
-    if (config.randomTheme === "fav" && config.favThemes.length > 0)
-      randomList = config.favThemes;
-    randomTheme = randomList[Math.floor(Math.random() * randomList.length)];
-    setTheme(randomTheme, true);
-    Notifications.add(randomTheme.replace(/_/g, " "), 0);
-  });
 }
 
 function setRandomTheme(val, nosave) {
@@ -1178,7 +1121,7 @@ function setRandomTheme(val, nosave) {
     val = "off";
   }
   if (val === "off") {
-    randomTheme = null;
+    ThemeController.clearRandom();
   }
   config.randomTheme = val;
   if (!nosave) saveConfigToCookie();
@@ -1189,45 +1132,11 @@ function setCustomTheme(boolean, nosave) {
   if (!nosave) saveConfigToCookie();
 }
 
-function setCustomThemeColors(colors, nosave) {
-  if (colors !== undefined) {
-    config.customThemeColors = colors;
-    applyCustomThemeColors();
-  }
-  if (!nosave) saveConfigToCookie();
-}
-
-function applyCustomThemeColors() {
-  const array = config.customThemeColors;
-
-  if (config.customTheme === true) {
-    $(".current-theme").text("custom");
-    previewTheme("serika_dark", false);
-    colorVars.forEach((e, index) => {
-      document.documentElement.style.setProperty(e, array[index]);
-    });
-  } else {
-    $(".current-theme").text(config.theme.replace("_", " "));
-    previewTheme(config.theme, false);
-    clearCustomTheme();
-  }
-  setTimeout(() => {
-    refreshThemeColorObject();
-    updateFavicon(32, 14);
-    $(".keymap-key").attr("style", "");
-  }, 500);
-}
-
-function clearCustomTheme() {
-  colorVars.forEach((e) => {
-    document.documentElement.style.setProperty(e, "");
-  });
-}
-
-function togglePresetCustomTheme() {
+function toggleCustomTheme(nosave) {
   if (config.customTheme) {
     setCustomTheme(false);
-    applyCustomThemeColors();
+    ThemeController.set(config.theme);
+    // applyCustomThemeColors();
     swapElements(
       $('.pageSettings [tabContent="custom"]'),
       $('.pageSettings [tabContent="preset"]'),
@@ -1235,53 +1144,25 @@ function togglePresetCustomTheme() {
     );
   } else {
     setCustomTheme(true);
-    applyCustomThemeColors();
+    ThemeController.set("custom");
+    // applyCustomThemeColors();
     swapElements(
       $('.pageSettings [tabContent="preset"]'),
       $('.pageSettings [tabContent="custom"]'),
       250
     );
   }
-  $(".keymap-key").attr("style", "");
+  if (!nosave) saveConfigToCookie();
 }
 
-function updateFavicon(size, curveSize) {
-  let maincolor, bgcolor;
-
-  bgcolor = getComputedStyle(document.body)
-    .getPropertyValue("--bg-color")
-    .replace(" ", "");
-  maincolor = getComputedStyle(document.body)
-    .getPropertyValue("--main-color")
-    .replace(" ", "");
-
-  if (bgcolor == maincolor) {
-    bgcolor = "#111";
-    maincolor = "#eee";
+function setCustomThemeColors(colors, nosave) {
+  if (colors !== undefined) {
+    config.customThemeColors = colors;
+    ThemeController.setCustomColors(colors);
+    // ThemeController.set("custom");
+    // applyCustomThemeColors();
   }
-
-  var canvas = document.createElement("canvas");
-  canvas.width = size;
-  canvas.height = size;
-  let ctx = canvas.getContext("2d");
-  ctx.beginPath();
-  ctx.moveTo(0, curveSize);
-  //top left
-  ctx.quadraticCurveTo(0, 0, curveSize, 0);
-  ctx.lineTo(size - curveSize, 0);
-  //top right
-  ctx.quadraticCurveTo(size, 0, size, curveSize);
-  ctx.lineTo(size, size - curveSize);
-  ctx.quadraticCurveTo(size, size, size - curveSize, size);
-  ctx.lineTo(curveSize, size);
-  ctx.quadraticCurveTo(0, size, 0, size - curveSize);
-  ctx.fillStyle = bgcolor;
-  ctx.fill();
-  ctx.font = "900 " + (size / 2) * 1.2 + "px Roboto Mono";
-  ctx.textAlign = "center";
-  ctx.fillStyle = maincolor;
-  ctx.fillText("mt", size / 2 + size / 32, (size / 3) * 2.1);
-  $("#favicon").attr("href", canvas.toDataURL("image/png"));
+  if (!nosave) saveConfigToCookie();
 }
 
 function setLanguage(language, nosave) {
@@ -1339,7 +1220,13 @@ function setLayout(layout, nosave) {
     layout = "qwerty";
   }
   config.layout = layout;
-  updateTestModesNotice();
+  updateTestModesNotice(
+    sameWordset,
+    textHasTab,
+    paceCaret,
+    activeFunBox,
+    config
+  );
   if (config.keymapLayout === "overrideSync") {
     refreshKeymapKeys(config.keymapLayout);
   }
@@ -1599,6 +1486,7 @@ function applyConfig(configObj) {
     setHideExtraLetters(configObj.hideExtraLetters, true);
     setStartGraphsAtZero(configObj.startGraphsAtZero, true);
     setStrictSpace(configObj.strictSpace, true);
+    setOppositeShiftMode(configObj.oppositeShiftMode, true);
     setMode(configObj.mode, true);
     setMonkey(configObj.monkey, true);
 
@@ -1756,6 +1644,7 @@ function applyConfig(configObj) {
         });
         $("#nitropay_ad_account").removeClass("hidden");
       } else {
+        $(".footerads").remove();
         $("#nitropay_ad_left").remove();
         $("#nitropay_ad_right").remove();
         $("#nitropay_ad_footer").remove();
@@ -1769,6 +1658,7 @@ function applyConfig(configObj) {
     } catch (e) {
       Notifications.add("Error initialising ads: " + e.message);
       console.log("error initialising ads " + e.message);
+      $(".footerads").remove();
       $("#nitropay_ad_left").remove();
       $("#nitropay_ad_right").remove();
       $("#nitropay_ad_footer").remove();
@@ -1780,5 +1670,11 @@ function applyConfig(configObj) {
       $("#nitropay_ad_about").remove();
     }
   }
-  updateTestModesNotice();
+  updateTestModesNotice(
+    sameWordset,
+    textHasTab,
+    paceCaret,
+    activeFunBox,
+    config
+  );
 }

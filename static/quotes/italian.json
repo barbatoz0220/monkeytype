@@ -36,6 +36,12 @@
       "source": "Bill Gates",
       "length": 303,
       "id": 5
+    },
+    {
+      "text": "E' molto semplice: non vedo bene che col cuore. L'essenziale è invisibile agli occhi.",
+      "source": "Antoine De Saint-Exupéry - Little Prince",
+      "length": 85,
+      "id": 6
     }
   ]
 }
