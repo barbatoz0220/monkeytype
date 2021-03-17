@@ -13,8 +13,9 @@ import {
   showBackgroundLoader,
   hideBackgroundLoader,
   swapElements,
-  accountIconLoading,
   updateTestModesNotice,
+  focusWords,
+  updateKeytips,
 } from "./dom-util";
 import * as Misc from "./misc";
 import * as CloudFunctions from "./cloud-functions";
@@ -32,3 +33,15 @@ import * as OutOfFocus from "./out-of-focus";
 import * as ChartController from "./chart-controller";
 import * as ThemeController from "./theme-controller";
 import * as Caret from "./caret";
+import * as CustomTextPopup from "./custom-text-popup";
+import * as ManualRestart from "./manual-restart-tracker";
+import Config from "./config";
+import * as ConfigSet from "./config-set";
+import * as Focus from "./focus";
+import * as AccountIcon from "./account-icon";
+import * as PractiseMissed from "./practise-missed";
+import * as TestUI from "./test-ui";
+import * as Keymap from "./keymap";
+import * as LiveWpm from "./live-wpm";
+import * as CapsWarning from "./caps-warning";
+import * as LiveAcc from './live-acc';

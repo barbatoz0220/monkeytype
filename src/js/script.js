@@ -9,17 +9,6 @@ let sameWordset = false;
 let textHasTab = false;
 let randomQuote = null;
 let bailout = false;
-let manualRestart = false;
-
-//test ui
-let currentWordElementIndex = 0;
-let resultVisible = false;
-let activeWordTop = 0;
-let activeWordJumped = false;
-let activeWordTopBeforeJump = 0;
-let testRestarting = false;
-let lineTransition = false;
-let currentTestLine = 0;
 
 //test timer
 let testActive = false;
@@ -27,7 +16,7 @@ let time = 0;
 let timer = null;
 
 //funbox
-let activeFunBox = "none";
+let activeFunbox = "none";
 let memoryFunboxTimer = null;
 let memoryFunboxInterval = null;
 
@@ -36,12 +25,9 @@ let paceCaret = null;
 
 //ui
 let pageTransition = false;
-let focusState = false;
 let notSignedInLastResult = null;
 let verifyUserWhenLoggedIn = null;
-let modeBeforePractise = null;
-let punctuationBeforePractise = null;
-let numbersBeforePractise = null;
+
 let selectedQuoteId = 1;
 
 ///
@@ -50,82 +36,8 @@ let selectedQuoteId = 1;
 // let CustomText.isWordRandom = false;
 // let CustomText.word = 1;
 
-function copyResultToClipboard() {
-  $(".pageTest .ssWatermark").removeClass("hidden");
-  $(".pageTest .buttons").addClass("hidden");
-  let src = $("#middle");
-  var sourceX = src.position().left; /*X position from div#target*/
-  var sourceY = src.position().top; /*Y position from div#target*/
-  var sourceWidth = src.width(); /*clientWidth/offsetWidth from div#target*/
-  var sourceHeight = src.height(); /*clientHeight/offsetHeight from div#target*/
-  $("#notificationCenter").addClass("hidden");
-  $("#commandLineMobileButton").addClass("hidden");
-  $(".pageTest .loginTip").addClass("hidden");
-  try {
-    html2canvas(document.body, {
-      backgroundColor: ThemeColors.bg,
-      height: sourceHeight + 50,
-      width: sourceWidth + 50,
-      x: sourceX - 25,
-      y: sourceY - 25,
-    }).then(function (canvas) {
-      canvas.toBlob(function (blob) {
-        try {
-          if (navigator.userAgent.toLowerCase().indexOf("firefox") > -1) {
-            open(URL.createObjectURL(blob));
-            $("#notificationCenter").removeClass("hidden");
-            $("#commandLineMobileButton").removeClass("hidden");
-            $(".pageTest .ssWatermark").addClass("hidden");
-            $(".pageTest .buttons").removeClass("hidden");
-            if (firebase.auth().currentUser == null)
-              $(".pageTest .loginTip").removeClass("hidden");
-          } else {
-            navigator.clipboard
-              .write([
-                new ClipboardItem(
-                  Object.defineProperty({}, blob.type, {
-                    value: blob,
-                    enumerable: true,
-                  })
-                ),
-              ])
-              .then(() => {
-                $("#notificationCenter").removeClass("hidden");
-                $("#commandLineMobileButton").removeClass("hidden");
-                Notifications.add("Copied to clipboard", 1, 2);
-                $(".pageTest .ssWatermark").addClass("hidden");
-                $(".pageTest .buttons").removeClass("hidden");
-                if (firebase.auth().currentUser == null)
-                  $(".pageTest .loginTip").removeClass("hidden");
-              });
-          }
-        } catch (e) {
-          $("#notificationCenter").removeClass("hidden");
-          $("#commandLineMobileButton").removeClass("hidden");
-          Notifications.add(
-            "Error saving image to clipboard: " + e.message,
-            -1
-          );
-          $(".pageTest .ssWatermark").addClass("hidden");
-          $(".pageTest .buttons").removeClass("hidden");
-          if (firebase.auth().currentUser == null)
-            $(".pageTest .loginTip").removeClass("hidden");
-        }
-      });
-    });
-  } catch (e) {
-    $("#notificationCenter").removeClass("hidden");
-    $("#commandLineMobileButton").removeClass("hidden");
-    Notifications.add("Error creating image: " + e.message, -1);
-    $(".pageTest .ssWatermark").addClass("hidden");
-    $(".pageTest .buttons").removeClass("hidden");
-    if (firebase.auth().currentUser == null)
-      $(".pageTest .loginTip").removeClass("hidden");
-  }
-}
-
 async function activateFunbox(funbox, mode) {
-  if (testActive || resultVisible) {
+  if (testActive || TestUI.resultVisible) {
     Notifications.add(
       "You can only change the funbox before starting a test.",
       0
@@ -145,7 +57,7 @@ async function activateFunbox(funbox, mode) {
   $("#funBoxTheme").attr("href", ``);
   $("#words").removeClass("nospace");
   // if (funbox === "none") {
-  activeFunBox = "none";
+  activeFunbox = "none";
   memoryFunboxInterval = clearInterval(memoryFunboxInterval);
   memoryFunboxTimer = null;
   $("#wordsWrapper").removeClass("hidden");
@@ -156,11 +68,11 @@ async function activateFunbox(funbox, mode) {
     mode = list.filter((f) => f.name === funbox)[0].type;
   }
 
-  manualRestart = true;
+  ManualRestart.set();
   if (mode === "style") {
     if (funbox != undefined) {
       $("#funBoxTheme").attr("href", `funbox/${funbox}.css`);
-      activeFunBox = funbox;
+      activeFunbox = funbox;
     }
 
     if (funbox === "simon_says") {
@@ -180,14 +92,14 @@ async function activateFunbox(funbox, mode) {
   } else if (mode === "script") {
     if (funbox === "tts") {
       $("#funBoxTheme").attr("href", `funbox/simon_says.css`);
-      config.keymapMode = "off";
+      ConfigSet.keymapMode("off");
       settingsGroups.keymapMode.updateButton();
       restartTest();
     } else if (funbox === "layoutfluid") {
-      config.keymapMode = "on";
+      ConfigSet.keymapMode("on");
       setKeymapMode("next");
       settingsGroups.keymapMode.updateButton();
-      config.savedLayout = config.layout;
+      ConfigSet.savedLayout(Config.layout);
       setLayout("qwerty");
       settingsGroups.layout.updateButton();
       setKeymapLayout("qwerty");
@@ -197,7 +109,7 @@ async function activateFunbox(funbox, mode) {
       setMode("words");
       setShowAllLines(true, true);
       restartTest(false, true);
-      if (config.keymapMode === "next") {
+      if (Config.keymapMode === "next") {
         setKeymapMode("react");
       }
     } else if (funbox === "nospace") {
@@ -205,27 +117,21 @@ async function activateFunbox(funbox, mode) {
       setHighlightMode("letter", true);
       restartTest(false, true);
     }
-    activeFunBox = funbox;
+    activeFunbox = funbox;
   }
 
   if (funbox !== "layoutfluid" || mode !== "script") {
-    if (config.layout !== config.savedLayout) {
-      setLayout(config.savedLayout);
+    if (Config.layout !== Config.savedLayout) {
+      setLayout(Config.savedLayout);
       settingsGroups.layout.updateButton();
     }
   }
-  updateTestModesNotice(
-    sameWordset,
-    textHasTab,
-    paceCaret,
-    activeFunBox,
-    config
-  );
+  TestUI.updateModesNotice(sameWordset, textHasTab, paceCaret, activeFunbox);
   return true;
 }
 
 function toggleScriptFunbox(...params) {
-  if (activeFunBox === "tts") {
+  if (activeFunbox === "tts") {
     var msg = new SpeechSynthesisUtterance();
     msg.text = params[0];
     msg.lang = "en-US";
@@ -240,33 +146,11 @@ function getuid() {
   console.error("Only share this uid with Miodec and nobody else!");
 }
 
-function setFocus(foc) {
-  if (foc && !focusState) {
-    focusState = true;
-    Caret.stopAnimation();
-    $("#top").addClass("focus");
-    $("#bottom").addClass("focus");
-    $("body").css("cursor", "none");
-    $("#middle").addClass("focus");
-  } else if (!foc && focusState) {
-    focusState = false;
-    if (testActive) {
-      Caret.stopAnimation();
-    } else {
-      Caret.startAnimation(config);
-    }
-    $("#top").removeClass("focus");
-    $("#bottom").removeClass("focus");
-    $("body").css("cursor", "default");
-    $("#middle").removeClass("focus");
-  }
-}
-
 async function initWords() {
   testActive = false;
   wordsList = [];
   currentWordIndex = 0;
-  currentWordElementIndex = 0;
+  TestUI.setCurrentWordElementIndex(0);
   // accuracy = {
   //   correct: 0,
   //   incorrect: 0,
@@ -276,24 +160,24 @@ async function initWords() {
   // currentCorrected = "";
   currentInput = "";
 
-  let language = await Misc.getLanguage(config.language);
-  if (language && language.name !== config.language) {
-    config.language = "english";
+  let language = await Misc.getLanguage(Config.language);
+  if (language && language.name !== Config.language) {
+    ConfigSet.language("english");
   }
 
   if (!language) {
-    config.language = "english";
-    language = await Misc.getLanguage(config.language);
+    ConfigSet.language("english");
+    language = await Misc.getLanguage(Config.language);
   }
 
   if (
-    config.mode == "time" ||
-    config.mode == "words" ||
-    config.mode == "custom"
+    Config.mode == "time" ||
+    Config.mode == "words" ||
+    Config.mode == "custom"
   ) {
     let wordsBound = 100;
-    if (config.showAllLines) {
-      if (config.mode === "custom") {
+    if (Config.showAllLines) {
+      if (Config.mode === "custom") {
         if (CustomText.isWordRandom) {
           wordsBound = CustomText.word;
         } else if (CustomText.isTimeRandom) {
@@ -301,29 +185,29 @@ async function initWords() {
         } else {
           wordsBound = CustomText.text.length;
         }
-      } else if (config.mode != "time") {
-        wordsBound = config.words;
+      } else if (Config.mode != "time") {
+        wordsBound = Config.words;
       }
     } else {
-      if (config.mode === "words" && config.words < wordsBound) {
-        wordsBound = config.words;
+      if (Config.mode === "words" && Config.words < wordsBound) {
+        wordsBound = Config.words;
       }
       if (
-        config.mode == "custom" &&
+        Config.mode == "custom" &&
         CustomText.isWordRandom &&
         CustomText.word < wordsBound
       ) {
         wordsBound = CustomText.word;
       }
       if (
-        config.mode == "custom" &&
+        Config.mode == "custom" &&
         CustomText.isTimeRandom &&
         CustomText.time < wordsBound
       ) {
         wordsBound = 100;
       }
       if (
-        config.mode == "custom" &&
+        Config.mode == "custom" &&
         !CustomText.isWordRandom &&
         CustomText.text.length < wordsBound
       ) {
@@ -332,24 +216,24 @@ async function initWords() {
     }
 
     if (
-      (config.mode === "custom" &&
+      (Config.mode === "custom" &&
         CustomText.isWordRandom &&
         CustomText.word == 0) ||
-      (config.mode === "custom" &&
+      (Config.mode === "custom" &&
         CustomText.isTimeRandom &&
         CustomText.time == 0)
     ) {
       wordsBound = 100;
     }
 
-    if (config.mode === "words" && config.words === 0) {
+    if (Config.mode === "words" && Config.words === 0) {
       wordsBound = 100;
     }
-    if (activeFunBox === "plus_one") {
+    if (activeFunbox === "plus_one") {
       wordsBound = 2;
     }
     let wordset = language.words;
-    if (config.mode == "custom") {
+    if (Config.mode == "custom") {
       wordset = CustomText.text;
     }
     for (let i = 0; i < wordsBound; i++) {
@@ -357,24 +241,24 @@ async function initWords() {
       const previousWord = wordsList[i - 1];
       const previousWord2 = wordsList[i - 2];
       if (
-        config.mode == "custom" &&
+        Config.mode == "custom" &&
         (CustomText.isWordRandom || CustomText.isTimeRandom)
       ) {
         randomWord = wordset[Math.floor(Math.random() * wordset.length)];
-      } else if (config.mode == "custom" && !CustomText.isWordRandom) {
+      } else if (Config.mode == "custom" && !CustomText.isWordRandom) {
         randomWord = CustomText.text[i];
       } else {
         while (
           randomWord == previousWord ||
           randomWord == previousWord2 ||
-          (!config.punctuation && randomWord == "I") ||
+          (!Config.punctuation && randomWord == "I") ||
           randomWord.indexOf(" ") > -1
         ) {
           randomWord = wordset[Math.floor(Math.random() * wordset.length)];
         }
       }
 
-      if (activeFunBox === "rAnDoMcAsE") {
+      if (activeFunbox === "rAnDoMcAsE") {
         let randomcaseword = "";
         for (let i = 0; i < randomWord.length; i++) {
           if (i % 2 != 0) {
@@ -384,23 +268,23 @@ async function initWords() {
           }
         }
         randomWord = randomcaseword;
-      } else if (activeFunBox === "gibberish") {
+      } else if (activeFunbox === "gibberish") {
         randomWord = Misc.getGibberish();
-      } else if (activeFunBox === "58008") {
+      } else if (activeFunbox === "58008") {
         setToggleSettings(false, true);
         randomWord = Misc.getNumbers(7);
-      } else if (activeFunBox === "specials") {
+      } else if (activeFunbox === "specials") {
         setToggleSettings(false, true);
         randomWord = Misc.getSpecials();
-      } else if (activeFunBox === "ascii") {
+      } else if (activeFunbox === "ascii") {
         setToggleSettings(false, true);
         randomWord = Misc.getASCII();
       }
 
-      if (config.punctuation) {
+      if (Config.punctuation) {
         randomWord = punctuateWord(previousWord, randomWord, i, wordsBound);
       }
-      if (config.numbers) {
+      if (Config.numbers) {
         if (Math.random() < 0.1) {
           randomWord = Misc.getNumbers(4);
         }
@@ -412,25 +296,25 @@ async function initWords() {
 
       wordsList.push(randomWord);
     }
-  } else if (config.mode == "quote") {
-    // setLanguage(config.language.replace(/_\d*k$/g, ""), true);
+  } else if (Config.mode == "quote") {
+    // setLanguage(Config.language.replace(/_\d*k$/g, ""), true);
 
-    let quotes = await Misc.getQuotes(config.language.replace(/_\d*k$/g, ""));
+    let quotes = await Misc.getQuotes(Config.language.replace(/_\d*k$/g, ""));
 
     if (quotes.length === 0) {
       Notifications.add(
-        `No ${config.language.replace(/_\d*k$/g, "")} quotes found`,
+        `No ${Config.language.replace(/_\d*k$/g, "")} quotes found`,
         0
       );
-      testRestarting = false;
+      TestUI.setTestRestarting(false);
       setMode("words");
       restartTest();
       return;
     }
 
     let rq;
-    if (config.quoteLength != -2) {
-      let quoteLengths = config.quoteLength;
+    if (Config.quoteLength != -2) {
+      let quoteLengths = Config.quoteLength;
       let groupIndex;
       if (quoteLengths.length > 1) {
         groupIndex =
@@ -443,7 +327,7 @@ async function initWords() {
         groupIndex = quoteLengths[0];
         if (quotes.groups[groupIndex].length === 0) {
           Notifications.add("No quotes found for selected quote length", 0);
-          testRestarting = false;
+          TestUI.setTestRestarting(false);
           return;
         }
       }
@@ -487,16 +371,16 @@ async function initWords() {
   }
   //handle right-to-left languages
   if (language.leftToRight) {
-    arrangeCharactersLeftToRight();
+    TestUI.arrangeCharactersLeftToRight();
   } else {
-    arrangeCharactersRightToLeft();
+    TestUI.arrangeCharactersRightToLeft();
   }
   if (language.ligatures) {
     $("#words").addClass("withLigatures");
   } else {
     $("#words").removeClass("withLigatures");
   }
-  // if (config.mode == "zen") {
+  // if (Config.mode == "zen") {
   //   // Creating an empty active word element for zen mode
   //   $("#words").append('<div class="word active"></div>');
   //   $("#words").css("height", "auto");
@@ -506,14 +390,6 @@ async function initWords() {
   // }
 }
 
-function arrangeCharactersRightToLeft() {
-  $("#words").addClass("rightToLeftTest");
-}
-
-function arrangeCharactersLeftToRight() {
-  $("#words").removeClass("rightToLeftTest");
-}
-
 function setToggleSettings(state, nosave) {
   setPunctuation(state, nosave);
   setNumbers(state, nosave);
@@ -521,7 +397,7 @@ function setToggleSettings(state, nosave) {
 
 function emulateLayout(event) {
   function emulatedLayoutShouldShiftKey(event, newKeyPreview) {
-    if (config.capsLockBackspace) return event.shiftKey;
+    if (Config.capsLockBackspace) return event.shiftKey;
     const isCapsLockHeld = event.originalEvent.getModifierState("CapsLock");
     if (isCapsLockHeld)
       return Misc.isASCIILetter(newKeyPreview) !== event.shiftKey;
@@ -540,9 +416,9 @@ function emulateLayout(event) {
   let newEvent = event;
 
   try {
-    if (config.layout === "default") {
+    if (Config.layout === "default") {
       //override the caps lock modifier for the default layout if needed
-      if (config.capsLockBackspace && Misc.isASCIILetter(newEvent.key)) {
+      if (Config.capsLockBackspace && Misc.isASCIILetter(newEvent.key)) {
         replaceEventKey(
           newEvent,
           newEvent.shiftKey
@@ -603,7 +479,7 @@ function emulateLayout(event) {
       "Slash",
       "Space",
     ];
-    const layoutMap = layouts[config.layout].keys;
+    const layoutMap = layouts[Config.layout].keys;
 
     let mapIndex;
     for (let i = 0; i < keyEventCodes.length; i++) {
@@ -629,7 +505,7 @@ function punctuateWord(previousWord, currentWord, index, maxindex) {
       Misc.getLastChar(previousWord) == "." ||
       Misc.getLastChar(previousWord) == "?" ||
       Misc.getLastChar(previousWord) == "!") &&
-    config.language.split("_")[0] != "code"
+    Config.language.split("_")[0] != "code"
   ) {
     //always capitalise the first word or if there was a dot unless using a code alphabet
     word = Misc.capitalizeFirstLetter(word);
@@ -644,13 +520,13 @@ function punctuateWord(previousWord, currentWord, index, maxindex) {
     if (rand <= 0.8) {
       word += ".";
     } else if (rand > 0.8 && rand < 0.9) {
-      if (config.language.split("_")[0] == "french") {
+      if (Config.language.split("_")[0] == "french") {
         word = "?";
       } else {
         word += "?";
       }
     } else {
-      if (config.language.split("_")[0] == "french") {
+      if (Config.language.split("_")[0] == "french") {
         word = "!";
       } else {
         word += "!";
@@ -660,14 +536,14 @@ function punctuateWord(previousWord, currentWord, index, maxindex) {
     Math.random() < 0.01 &&
     Misc.getLastChar(previousWord) != "," &&
     Misc.getLastChar(previousWord) != "." &&
-    config.language.split("_")[0] !== "russian"
+    Config.language.split("_")[0] !== "russian"
   ) {
     word = `"${word}"`;
   } else if (
     Math.random() < 0.011 &&
     Misc.getLastChar(previousWord) != "," &&
     Misc.getLastChar(previousWord) != "." &&
-    config.language.split("_")[0] !== "russian"
+    Config.language.split("_")[0] !== "russian"
   ) {
     word = `'${word}'`;
   } else if (
@@ -675,7 +551,7 @@ function punctuateWord(previousWord, currentWord, index, maxindex) {
     Misc.getLastChar(previousWord) != "," &&
     Misc.getLastChar(previousWord) != "."
   ) {
-    if (config.language.split("_")[0] == "code") {
+    if (Config.language.split("_")[0] == "code") {
       let r = Math.random();
       if (r < 0.25) {
         word = `(${word})`;
@@ -690,7 +566,7 @@ function punctuateWord(previousWord, currentWord, index, maxindex) {
       word = `(${word})`;
     }
   } else if (Math.random() < 0.013) {
-    if (config.language.split("_")[0] == "french") {
+    if (Config.language.split("_")[0] == "french") {
       word = ":";
     } else {
       word += ":";
@@ -708,14 +584,14 @@ function punctuateWord(previousWord, currentWord, index, maxindex) {
     Misc.getLastChar(previousWord) != "." &&
     Misc.getLastChar(previousWord) != ";"
   ) {
-    if (config.language.split("_")[0] == "french") {
+    if (Config.language.split("_")[0] == "french") {
       word = ";";
     } else {
       word += ";";
     }
   } else if (Math.random() < 0.2 && Misc.getLastChar(previousWord) != ",") {
     word += ",";
-  } else if (Math.random() < 0.25 && config.language.split("_")[0] == "code") {
+  } else if (Math.random() < 0.25 && Config.language.split("_")[0] == "code") {
     let specials = ["{", "}", "[", "]", "(", ")", ";", "=", "%", "/"];
 
     word = specials[Math.floor(Math.random() * 10)];
@@ -725,23 +601,23 @@ function punctuateWord(previousWord, currentWord, index, maxindex) {
 
 function addWord() {
   let bound = 100;
-  if (activeFunBox === "plus_one") bound = 1;
+  if (activeFunbox === "plus_one") bound = 1;
   if (
     wordsList.length - inputHistory.length > bound ||
-    (config.mode === "words" &&
-      wordsList.length >= config.words &&
-      config.words > 0) ||
-    (config.mode === "custom" &&
+    (Config.mode === "words" &&
+      wordsList.length >= Config.words &&
+      Config.words > 0) ||
+    (Config.mode === "custom" &&
       CustomText.isWordRandom &&
       wordsList.length >= CustomText.word &&
       CustomText.word != 0) ||
-    (config.mode === "custom" &&
+    (Config.mode === "custom" &&
       !CustomText.isWordRandom &&
       wordsList.length >= CustomText.text.length)
   )
     return;
   const language =
-    config.mode !== "custom"
+    Config.mode !== "custom"
       ? Misc.getCurrentLanguage()
       : {
           //borrow the direction of the current language
@@ -759,25 +635,25 @@ function addWord() {
     .toLowerCase();
 
   if (
-    config.mode === "custom" &&
+    Config.mode === "custom" &&
     CustomText.isWordRandom &&
     wordset.length < 3
   ) {
     randomWord = wordset[Math.floor(Math.random() * wordset.length)];
-  } else if (config.mode == "custom" && !CustomText.isWordRandom) {
+  } else if (Config.mode == "custom" && !CustomText.isWordRandom) {
     randomWord = CustomText.text[wordsList.length];
   } else {
     while (
       previousWordStripped == randomWord ||
       previousWord2Stripped == randomWord ||
       randomWord.indexOf(" ") > -1 ||
-      (!config.punctuation && randomWord == "I")
+      (!Config.punctuation && randomWord == "I")
     ) {
       randomWord = wordset[Math.floor(Math.random() * wordset.length)];
     }
   }
 
-  if (activeFunBox === "rAnDoMcAsE") {
+  if (activeFunbox === "rAnDoMcAsE") {
     let randomcaseword = "";
     for (let i = 0; i < randomWord.length; i++) {
       if (i % 2 != 0) {
@@ -787,20 +663,20 @@ function addWord() {
       }
     }
     randomWord = randomcaseword;
-  } else if (activeFunBox === "gibberish") {
+  } else if (activeFunbox === "gibberish") {
     randomWord = Misc.getGibberish();
-  } else if (activeFunBox === "58008") {
+  } else if (activeFunbox === "58008") {
     randomWord = Misc.getNumbers(7);
-  } else if (activeFunBox === "specials") {
+  } else if (activeFunbox === "specials") {
     randomWord = Misc.getSpecials();
-  } else if (activeFunBox === "ascii") {
+  } else if (activeFunbox === "ascii") {
     randomWord = Misc.getASCII();
   }
 
-  if (config.punctuation && config.mode != "custom") {
+  if (Config.punctuation && Config.mode != "custom") {
     randomWord = punctuateWord(previousWord, randomWord, wordsList.length, 0);
   }
-  if (config.numbers && config.mode != "custom") {
+  if (Config.numbers && Config.mode != "custom") {
     if (Math.random() < 0.1) {
       randomWord = Misc.getNumbers(4);
     }
@@ -821,7 +697,7 @@ function showWords() {
 
   let wordsHTML = "";
   let newlineafter = false;
-  if (config.mode !== "zen") {
+  if (Config.mode !== "zen") {
     for (let i = 0; i < wordsList.length; i++) {
       newlineafter = false;
       wordsHTML += `<div class='word'>`;
@@ -849,8 +725,8 @@ function showWords() {
   const wordHeight = $(document.querySelector(".word")).outerHeight(true);
   const wordsHeight = $(document.querySelector("#words")).outerHeight(true);
   if (
-    config.showAllLines &&
-    config.mode != "time" &&
+    Config.showAllLines &&
+    Config.mode != "time" &&
     !(CustomText.isWordRandom && CustomText.word == 0) &&
     !CustomText.isTimeRandom
   ) {
@@ -872,22 +748,29 @@ function showWords() {
     $(".outOfFocusWarning").css("line-height", wordHeight * 3 + "px");
   }
 
-  if (config.mode === "zen") {
+  if (Config.mode === "zen") {
     $(document.querySelector(".word")).remove();
   }
 
-  if (config.keymapMode === "next") {
-    updateHighlightedKeymapKey();
+  if (Config.keymapMode === "next") {
+    Keymap.highlightKey(
+      wordsList[currentWordIndex]
+        .substring(currentInput.length, currentInput.length + 1)
+        .toString()
+        .toUpperCase()
+    );
   }
 
-  updateActiveElement();
-  Caret.updatePosition(currentInput, config);
+  TestUI.updateActiveElement();
+  toggleScriptFunbox(wordsList[currentWordIndex]);
+
+  Caret.updatePosition(currentInput);
 }
 
 (function (history) {
   var pushState = history.pushState;
   history.pushState = function (state) {
-    if (activeFunBox === "memory" && state !== "/") {
+    if (activeFunbox === "memory" && state !== "/") {
       memoryFunboxInterval = clearInterval(memoryFunboxInterval);
       memoryFunboxTimer = null;
     }
@@ -895,36 +778,8 @@ function showWords() {
   };
 })(window.history);
 
-function updateActiveElement(backspace) {
-  let active = document.querySelector("#words .active");
-  if (config.mode == "zen" && backspace) {
-    active.remove();
-  } else if (active !== null) {
-    if (config.highlightMode == "word") {
-      active.querySelectorAll("letter").forEach((e) => {
-        e.classList.remove("correct");
-      });
-    }
-    active.classList.remove("active");
-  }
-  try {
-    let activeWord = document.querySelectorAll("#words .word")[
-      currentWordElementIndex
-    ];
-    activeWord.classList.add("active");
-    activeWord.classList.remove("error");
-    activeWordTop = document.querySelector("#words .active").offsetTop;
-    if (config.highlightMode == "word") {
-      activeWord.querySelectorAll("letter").forEach((e) => {
-        e.classList.add("correct");
-      });
-    }
-  } catch (e) {}
-  toggleScriptFunbox(wordsList[currentWordIndex]);
-}
-
 function updateWordElement(showError) {
-  // if (config.mode == "zen") return;
+  // if (Config.mode == "zen") return;
 
   let input = currentInput;
   let wordAtIndex;
@@ -935,7 +790,7 @@ function updateWordElement(showError) {
 
   let newlineafter = false;
 
-  if (config.mode === "zen") {
+  if (Config.mode === "zen") {
     for (let i = 0; i < currentInput.length; i++) {
       if (currentInput[i] === "\t") {
         ret += `<letter class='tabChar correct'><i class="fas fa-long-arrow-alt-right"></i></letter>`;
@@ -947,7 +802,7 @@ function updateWordElement(showError) {
       }
     }
   } else {
-    if (config.highlightMode == "word") {
+    if (Config.highlightMode == "word") {
       //only for word highlight
 
       let correctSoFar = false;
@@ -956,7 +811,7 @@ function updateWordElement(showError) {
         correctSoFar = true;
       }
       let classString = correctSoFar ? "correct" : "incorrect";
-      if (config.blindMode) {
+      if (Config.blindMode) {
         classString = "correct";
       }
 
@@ -968,7 +823,7 @@ function updateWordElement(showError) {
       //show any extra letters if hide extra letters is disabled
       if (
         currentInput.length > currentWord.length &&
-        !config.hideExtraLetters
+        !Config.hideExtraLetters
       ) {
         for (let i = currentWord.length; i < currentInput.length; i++) {
           let letter = currentInput[i];
@@ -1001,8 +856,8 @@ function updateWordElement(showError) {
         if (charCorrect) {
           ret += `<letter class="correct ${tabChar}${nlChar}">${currentLetter}</letter>`;
         } else {
-          // if (config.difficulty == "master") {
-          //   if (!resultVisible) {
+          // if (Config.difficulty == "master") {
+          //   if (!TestUI.resultVisible) {
           //     failTest();
           //   }
           // }
@@ -1012,7 +867,7 @@ function updateWordElement(showError) {
             }
           } else {
             if (currentLetter == undefined) {
-              if (!config.hideExtraLetters) {
+              if (!Config.hideExtraLetters) {
                 let letter = input[i];
                 if (letter == " " || letter == "\t" || letter == "\n") {
                   letter = "_";
@@ -1023,7 +878,7 @@ function updateWordElement(showError) {
               ret +=
                 `<letter class="incorrect ${tabChar}${nlChar}">` +
                 currentLetter +
-                (config.indicateTypos ? `<hint>${input[i]}</hint>` : "") +
+                (Config.indicateTypos ? `<hint>${input[i]}</hint>` : "") +
                 "</letter>";
             }
           }
@@ -1053,15 +908,15 @@ function highlightBadWord(index, showError) {
 }
 
 function showTimer() {
-  let op = config.showTimerProgress ? config.timerOpacity : 0;
-  if (config.mode != "zen" && config.timerStyle === "bar") {
+  let op = Config.showTimerProgress ? Config.timerOpacity : 0;
+  if (Config.mode != "zen" && Config.timerStyle === "bar") {
     $("#timerWrapper").stop(true, true).removeClass("hidden").animate(
       {
         opacity: op,
       },
       125
     );
-  } else if (config.timerStyle === "text") {
+  } else if (Config.timerStyle === "text") {
     $("#timerNumber")
       .stop(true, true)
       .removeClass("hidden")
@@ -1072,7 +927,7 @@ function showTimer() {
         },
         125
       );
-  } else if (config.mode == "zen" || config.timerStyle === "mini") {
+  } else if (Config.mode == "zen" || Config.timerStyle === "mini") {
     if (op > 0) {
       $("#miniTimerAndLiveWpm .time")
         .stop(true, true)
@@ -1114,15 +969,15 @@ function hideTimer() {
 }
 
 function restartTimer() {
-  if (config.timerStyle === "bar") {
-    if (config.mode === "time") {
+  if (Config.timerStyle === "bar") {
+    if (Config.mode === "time") {
       $("#timer").stop(true, true).animate(
         {
           width: "100vw",
         },
         0
       );
-    } else if (config.mode === "words" || config.mode === "custom") {
+    } else if (Config.mode === "words" || Config.mode === "custom") {
       $("#timer").stop(true, true).animate(
         {
           width: "0vw",
@@ -1134,16 +989,16 @@ function restartTimer() {
 }
 
 function updateTimer() {
-  if (!config.showTimerProgress) return;
+  if (!Config.showTimerProgress) return;
   if (
-    config.mode === "time" ||
-    (config.mode === "custom" && CustomText.isTimeRandom)
+    Config.mode === "time" ||
+    (Config.mode === "custom" && CustomText.isTimeRandom)
   ) {
-    let maxtime = config.time;
-    if (config.mode === "custom" && CustomText.isTimeRandom) {
+    let maxtime = Config.time;
+    if (Config.mode === "custom" && CustomText.isTimeRandom) {
       maxtime = CustomText.time;
     }
-    if (config.timerStyle === "bar") {
+    if (Config.timerStyle === "bar") {
       let percent = 100 - ((time + 1) / maxtime) * 100;
       $("#timer")
         .stop(true, true)
@@ -1154,13 +1009,13 @@ function updateTimer() {
           1000,
           "linear"
         );
-    } else if (config.timerStyle === "text") {
+    } else if (Config.timerStyle === "text") {
       let displayTime = Misc.secondsToString(maxtime - time);
       if (maxtime === 0) {
         displayTime = Misc.secondsToString(time);
       }
       $("#timerNumber").html("<div>" + displayTime + "</div>");
-    } else if (config.timerStyle === "mini") {
+    } else if (Config.timerStyle === "mini") {
       let displayTime = Misc.secondsToString(maxtime - time);
       if (maxtime === 0) {
         displayTime = Misc.secondsToString(time);
@@ -1168,16 +1023,16 @@ function updateTimer() {
       $("#miniTimerAndLiveWpm .time").html(displayTime);
     }
   } else if (
-    config.mode === "words" ||
-    config.mode === "custom" ||
-    config.mode === "quote"
+    Config.mode === "words" ||
+    Config.mode === "custom" ||
+    Config.mode === "quote"
   ) {
-    if (config.timerStyle === "bar") {
+    if (Config.timerStyle === "bar") {
       let outof = wordsList.length;
-      if (config.mode === "words") {
-        outof = config.words;
+      if (Config.mode === "words") {
+        outof = Config.words;
       }
-      if (config.mode === "custom") {
+      if (Config.mode === "custom") {
         if (CustomText.isWordRandom) {
           outof = CustomText.word;
         } else {
@@ -1193,12 +1048,12 @@ function updateTimer() {
           },
           250
         );
-    } else if (config.timerStyle === "text") {
+    } else if (Config.timerStyle === "text") {
       let outof = wordsList.length;
-      if (config.mode === "words") {
-        outof = config.words;
+      if (Config.mode === "words") {
+        outof = Config.words;
       }
-      if (config.mode === "custom") {
+      if (Config.mode === "custom") {
         if (CustomText.isWordRandom) {
           outof = CustomText.word;
         } else {
@@ -1212,186 +1067,30 @@ function updateTimer() {
           "<div>" + `${inputHistory.length}/${outof}` + "</div>"
         );
       }
-    } else if (config.timerStyle === "mini") {
+    } else if (Config.timerStyle === "mini") {
       let outof = wordsList.length;
-      if (config.mode === "words") {
-        outof = config.words;
+      if (Config.mode === "words") {
+        outof = Config.words;
       }
-      if (config.mode === "custom") {
+      if (Config.mode === "custom") {
         if (CustomText.isWordRandom) {
           outof = CustomText.word;
         } else {
           outof = CustomText.text.length;
         }
       }
-      if (config.words === 0) {
+      if (Config.words === 0) {
         $("#miniTimerAndLiveWpm .time").html(`${inputHistory.length}`);
       } else {
         $("#miniTimerAndLiveWpm .time").html(`${inputHistory.length}/${outof}`);
       }
     }
-  } else if (config.mode == "zen") {
-    if (config.timerStyle === "text") {
+  } else if (Config.mode == "zen") {
+    if (Config.timerStyle === "text") {
       $("#timerNumber").html("<div>" + `${inputHistory.length}` + "</div>");
     } else {
       $("#miniTimerAndLiveWpm .time").html(`${inputHistory.length}`);
     }
-  }
-}
-
-function hideKeymap() {
-  $(".keymap").addClass("hidden");
-  // $("#liveWpm").removeClass("lower");
-}
-
-function showKeymap() {
-  $(".keymap").removeClass("hidden");
-  // $("#liveWpm").addClass("lower");
-}
-
-function flashPressedKeymapKey(key, correct) {
-  if (key == undefined) return;
-  switch (key) {
-    case "\\":
-    case "|":
-      key = "#KeyBackslash";
-      break;
-    case "}":
-    case "]":
-      key = "#KeyRightBracket";
-      break;
-    case "{":
-    case "[":
-      key = "#KeyLeftBracket";
-      break;
-    case '"':
-    case "'":
-      key = "#KeyQuote";
-      break;
-    case ":":
-    case ";":
-      key = "#KeySemicolon";
-      break;
-    case "<":
-    case ",":
-      key = "#KeyComma";
-      break;
-    case ">":
-    case ".":
-      key = "#KeyPeriod";
-      break;
-    case "?":
-    case "/":
-      key = "#KeySlash";
-      break;
-    case "" || "Space":
-      key = "#KeySpace";
-      break;
-    default:
-      key = `#Key${key.toUpperCase()}`;
-  }
-
-  if (key == "#KeySpace") {
-    key = ".key-split-space";
-  }
-
-  try {
-    if (correct || config.blindMode) {
-      $(key)
-        .stop(true, true)
-        .css({
-          color: ThemeColors.bg,
-          backgroundColor: ThemeColors.main,
-          borderColor: ThemeColors.main,
-        })
-        .animate(
-          {
-            color: ThemeColors.sub,
-            backgroundColor: "transparent",
-            borderColor: ThemeColors.sub,
-          },
-          500,
-          "easeOutExpo"
-        );
-    } else {
-      $(key)
-        .stop(true, true)
-        .css({
-          color: ThemeColors.bg,
-          backgroundColor: ThemeColors.error,
-          borderColor: ThemeColors.error,
-        })
-        .animate(
-          {
-            color: ThemeColors.sub,
-            backgroundColor: "transparent",
-            borderColor: ThemeColors.sub,
-          },
-          500,
-          "easeOutExpo"
-        );
-    }
-  } catch (e) {}
-}
-
-function updateHighlightedKeymapKey() {
-  try {
-    if ($(".active-key") != undefined) {
-      $(".active-key").removeClass("active-key");
-    }
-
-    var currentKey = wordsList[currentWordIndex]
-      .substring(currentInput.length, currentInput.length + 1)
-      .toString()
-      .toUpperCase();
-
-    let highlightKey;
-    switch (currentKey) {
-      case "\\":
-      case "|":
-        highlightKey = "#KeyBackslash";
-        break;
-      case "}":
-      case "]":
-        highlightKey = "#KeyRightBracket";
-        break;
-      case "{":
-      case "[":
-        highlightKey = "#KeyLeftBracket";
-        break;
-      case '"':
-      case "'":
-        highlightKey = "#KeyQuote";
-        break;
-      case ":":
-      case ";":
-        highlightKey = "#KeySemicolon";
-        break;
-      case "<":
-      case ",":
-        highlightKey = "#KeyComma";
-        break;
-      case ">":
-      case ".":
-        highlightKey = "#KeyPeriod";
-        break;
-      case "?":
-      case "/":
-        highlightKey = "#KeySlash";
-        break;
-      case "":
-        highlightKey = "#KeySpace";
-        break;
-      default:
-        highlightKey = `#Key${currentKey}`;
-    }
-
-    $(highlightKey).addClass("active-key");
-    if (highlightKey === "#KeySpace") {
-      $("#KeySpace2").addClass("active-key");
-    }
-  } catch (e) {
-    console.log("could not update highlighted keymap key: " + e.message);
   }
 }
 
@@ -1404,7 +1103,7 @@ function countChars() {
   let spaces = 0;
   let correctspaces = 0;
   for (let i = 0; i < inputHistory.length; i++) {
-    let word = config.mode == "zen" ? inputHistory[i] : wordsList[i];
+    let word = Config.mode == "zen" ? inputHistory[i] : wordsList[i];
     if (inputHistory[i] === "") {
       //last word that was not started
       continue;
@@ -1456,7 +1155,7 @@ function countChars() {
       }
       correctChars += toAdd.correct;
       incorrectChars += toAdd.incorrect;
-      if (i === inputHistory.length - 1 && config.mode == "time") {
+      if (i === inputHistory.length - 1 && Config.mode == "time") {
         //last word - check if it was all correct - add to correct word chars
         if (toAdd.incorrect === 0) correctWordChars += toAdd.correct;
       } else {
@@ -1467,7 +1166,7 @@ function countChars() {
       spaces++;
     }
   }
-  if (activeFunBox === "nospace") {
+  if (activeFunbox === "nospace") {
     spaces = 0;
     correctspaces = 0;
   }
@@ -1476,7 +1175,7 @@ function countChars() {
     correctWordChars: correctWordChars,
     allCorrectChars: correctChars,
     incorrectChars:
-      config.mode == "zen" ? TestStats.accuracy.incorrect : incorrectChars,
+      Config.mode == "zen" ? TestStats.accuracy.incorrect : incorrectChars,
     extraChars: extraChars,
     missedChars: missedChars,
     correctSpaces: correctspaces,
@@ -1546,24 +1245,26 @@ function failTest() {
   TestStats.incrementRestartCount();
 }
 
-let resultCalculating = false;
 function showResult(difficultyFailed = false) {
   if (!testActive) return;
-  if (config.mode == "zen" && currentInput.length != 0) {
+  if (Config.mode == "zen" && currentInput.length != 0) {
     inputHistory.push(currentInput);
     correctedHistory.push(currentCorrected);
   }
 
-  resultCalculating = true;
-  resultVisible = true;
+  TestStats.recordKeypressSpacing();
+
+  TestUI.setResultCalculating(true);
+  TestUI.setResultVisible(true);
   TestStats.setEnd(performance.now());
   testActive = false;
-  setFocus(false);
+  Focus.set(false);
   Caret.hide();
-  hideLiveWpm();
-  hideLiveAcc();
+  LiveWpm.hide();
+  hideCrown();
+  LiveAcc.hide();
   hideTimer();
-  hideKeymap();
+  Keymap.hide();
   let stats = calculateStats();
   if (stats === undefined) {
     stats = {
@@ -1592,8 +1293,8 @@ function showResult(difficultyFailed = false) {
 
   $("#result #resultWordsHistory").addClass("hidden");
 
-  if (config.alwaysShowDecimalPlaces) {
-    if (config.alwaysShowCPM == false) {
+  if (Config.alwaysShowDecimalPlaces) {
+    if (Config.alwaysShowCPM == false) {
       $("#result .stats .wpm .top .text").text("wpm");
       if (inf) {
         $("#result .stats .wpm .bottom").text("Infinite");
@@ -1633,7 +1334,7 @@ function showResult(difficultyFailed = false) {
     );
   } else {
     //not showing decimal places
-    if (config.alwaysShowCPM == false) {
+    if (Config.alwaysShowCPM == false) {
       $("#result .stats .wpm .top .text").text("wpm");
       $("#result .stats .wpm .bottom").attr(
         "aria-label",
@@ -1706,15 +1407,15 @@ function showResult(difficultyFailed = false) {
   $("#result .stats .leaderboards").addClass("hidden");
 
   let mode2 = "";
-  if (config.mode === "time") {
-    mode2 = config.time;
-  } else if (config.mode === "words") {
-    mode2 = config.words;
-  } else if (config.mode === "custom") {
+  if (Config.mode === "time") {
+    mode2 = Config.time;
+  } else if (Config.mode === "words") {
+    mode2 = Config.words;
+  } else if (Config.mode === "custom") {
     mode2 = "custom";
-  } else if (config.mode === "quote") {
+  } else if (Config.mode === "quote") {
     mode2 = randomQuote.id;
-  } else if (config.mode === "zen") {
+  } else if (Config.mode === "zen") {
     mode2 = "zen";
   }
 
@@ -1764,7 +1465,7 @@ function showResult(difficultyFailed = false) {
     consistency = 0;
   }
 
-  if (config.alwaysShowDecimalPlaces) {
+  if (Config.alwaysShowDecimalPlaces) {
     $("#result .stats .consistency .bottom").text(
       Misc.roundTo2(consistency) + "%"
     );
@@ -1782,12 +1483,13 @@ function showResult(difficultyFailed = false) {
     );
   }
 
+  ChartController.result.data.datasets[0].data = TestStats.wpmHistory;
   ChartController.result.data.datasets[1].data = rawWpmPerSecond;
 
   let maxChartVal = Math.max(
     ...[Math.max(...rawWpmPerSecond), Math.max(...TestStats.wpmHistory)]
   );
-  if (!config.startGraphsAtZero) {
+  if (!Config.startGraphsAtZero) {
     ChartController.result.options.scales.yAxes[0].ticks.min = Math.min(
       ...TestStats.wpmHistory
     );
@@ -1829,12 +1531,12 @@ function showResult(difficultyFailed = false) {
 
   $("#result .stats .tags").addClass("hidden");
 
-  let lang = config.language;
+  let lang = Config.language;
 
   let quoteLength = -1;
-  if (config.mode === "quote") {
+  if (Config.mode === "quote") {
     quoteLength = randomQuote.group;
-    lang = config.language.replace(/_\d*k$/g, "");
+    lang = Config.language.replace(/_\d*k$/g, "");
   }
 
   if (difficultyFailed) {
@@ -1844,23 +1546,23 @@ function showResult(difficultyFailed = false) {
   } else if (sameWordset) {
     Notifications.add("Test invalid - repeated", 0);
   } else if (
-    (config.mode === "time" && mode2 < 15 && mode2 > 0) ||
-    (config.mode === "time" && mode2 == 0 && testtime < 15) ||
-    (config.mode === "words" && mode2 < 10 && mode2 > 0) ||
-    (config.mode === "words" && mode2 == 0 && testtime < 15) ||
-    (config.mode === "custom" &&
+    (Config.mode === "time" && mode2 < 15 && mode2 > 0) ||
+    (Config.mode === "time" && mode2 == 0 && testtime < 15) ||
+    (Config.mode === "words" && mode2 < 10 && mode2 > 0) ||
+    (Config.mode === "words" && mode2 == 0 && testtime < 15) ||
+    (Config.mode === "custom" &&
       !CustomText.isWordRandom &&
       !CustomText.isTimeRandom &&
       CustomText.text.length < 10) ||
-    (config.mode === "custom" &&
+    (Config.mode === "custom" &&
       CustomText.isWordRandom &&
       !CustomText.isTimeRandom &&
       CustomText.word < 10) ||
-    (config.mode === "custom" &&
+    (Config.mode === "custom" &&
       !CustomText.isWordRandom &&
       CustomText.isTimeRandom &&
       CustomText.time < 15) ||
-    (config.mode === "zen" && testtime < 15)
+    (Config.mode === "zen" && testtime < 15)
   ) {
     Notifications.add("Test too short", 0);
   } else {
@@ -1887,7 +1589,7 @@ function showResult(difficultyFailed = false) {
     }
 
     let cdata = null;
-    if (config.mode === "custom") {
+    if (Config.mode === "custom") {
       cdata = {};
       cdata.textLen = CustomText.text.length;
       cdata.isWordRandom = CustomText.isWordRandom;
@@ -1909,11 +1611,11 @@ function showResult(difficultyFailed = false) {
       incorrectChars: stats.incorrectChars,
       allChars: stats.allChars,
       acc: stats.acc,
-      mode: config.mode,
+      mode: Config.mode,
       mode2: mode2,
       quoteLength: quoteLength,
-      punctuation: config.punctuation,
-      numbers: config.numbers,
+      punctuation: Config.punctuation,
+      numbers: Config.numbers,
       timestamp: Date.now(),
       language: lang,
       restartCount: TestStats.restartCount,
@@ -1921,29 +1623,29 @@ function showResult(difficultyFailed = false) {
         TestStats.incompleteSeconds < 0
           ? 0
           : Misc.roundTo2(TestStats.incompleteSeconds),
-      difficulty: config.difficulty,
+      difficulty: Config.difficulty,
       testDuration: testtime,
       afkDuration: afkseconds,
-      blindMode: config.blindMode,
-      theme: config.theme,
+      blindMode: Config.blindMode,
+      theme: Config.theme,
       tags: activeTagsIds,
       keySpacing: TestStats.keypressTimings.spacing.array,
       keyDuration: TestStats.keypressTimings.duration.array,
       consistency: consistency,
       keyConsistency: keyConsistency,
-      funbox: activeFunBox,
+      funbox: activeFunbox,
       bailedOut: bailout,
       chartData: chartData,
       customText: cdata,
     };
 
-    if (config.mode !== "custom") {
+    if (Config.mode !== "custom") {
       delete completedEvent.CustomText;
     }
 
     if (
-      config.difficulty == "normal" ||
-      ((config.difficulty == "master" || config.difficulty == "expert") &&
+      Config.difficulty == "normal" ||
+      ((Config.difficulty == "master" || Config.difficulty == "expert") &&
         !difficultyFailed)
     ) {
       // restartCount = 0;
@@ -1958,36 +1660,34 @@ function showResult(difficultyFailed = false) {
     ) {
       if (firebase.auth().currentUser != null) {
         completedEvent.uid = firebase.auth().currentUser.uid;
-
         //check local pb
-        accountIconLoading(true);
+        AccountIcon.loading(true);
         let dontShowCrown = false;
         let pbDiff = 0;
         DB.getLocalPB(
-          config.mode,
+          Config.mode,
           mode2,
-          config.punctuation,
-          config.language,
-          config.difficulty
+          Config.punctuation,
+          Config.language,
+          Config.difficulty
         ).then((lpb) => {
           DB.getUserHighestWpm(
-            config.mode,
+            Config.mode,
             mode2,
-            config.punctuation,
-            config.language,
-            config.difficulty
+            Config.punctuation,
+            Config.language,
+            Config.difficulty
           ).then((highestwpm) => {
             hideCrown();
             $("#result .stats .wpm .crown").attr("aria-label", "");
             if (lpb < stats.wpm && stats.wpm < highestwpm) {
               dontShowCrown = true;
             }
-            if (config.mode == "quote") dontShowCrown = true;
+            if (Config.mode == "quote") dontShowCrown = true;
             if (lpb < stats.wpm) {
               //new pb based on local
               pbDiff = Math.abs(stats.wpm - lpb);
               if (!dontShowCrown) {
-                hideCrown();
                 showCrown();
                 $("#result .stats .wpm .crown").attr(
                   "aria-label",
@@ -2007,7 +1707,7 @@ function showResult(difficultyFailed = false) {
                 borderDash: [2, 2],
                 label: {
                   backgroundColor: ThemeColors.sub,
-                  fontFamily: config.fontFamily.replace(/_/g, " "),
+                  fontFamily: Config.fontFamily.replace(/_/g, " "),
                   fontSize: 11,
                   fontStyle: "normal",
                   fontColor: ThemeColors.bg,
@@ -2030,7 +1730,7 @@ function showResult(difficultyFailed = false) {
               );
               ChartController.result.update({ duration: 0 });
             }
-            if (config.mode === "time" && (mode2 === 15 || mode2 === 60)) {
+            if (Config.mode === "time" && (mode2 === 15 || mode2 === 60)) {
               $("#result .stats .leaderboards").removeClass("hidden");
               $("#result .stats .leaderboards .bottom").html("checking...");
             }
@@ -2045,25 +1745,25 @@ function showResult(difficultyFailed = false) {
             activeTags.forEach(async (tag) => {
               let tpb = await DB.getLocalTagPB(
                 tag.id,
-                config.mode,
+                Config.mode,
                 mode2,
-                config.punctuation,
-                config.language,
-                config.difficulty
+                Config.punctuation,
+                Config.language,
+                Config.difficulty
               );
               $("#result .stats .tags .bottom").append(`
                 <div tagid="${tag.id}" aria-label="PB: ${tpb}" data-balloon-pos="up">${tag.name}<i class="fas fa-crown hidden"></i></div>
               `);
-              if (config.mode != "quote") {
+              if (Config.mode != "quote") {
                 if (tpb < stats.wpm) {
                   //new pb for that tag
                   DB.saveLocalTagPB(
                     tag.id,
-                    config.mode,
+                    Config.mode,
                     mode2,
-                    config.punctuation,
-                    config.language,
-                    config.difficulty,
+                    Config.punctuation,
+                    Config.language,
+                    Config.difficulty,
                     stats.wpm,
                     stats.acc,
                     stats.wpmRaw,
@@ -2089,7 +1789,7 @@ function showResult(difficultyFailed = false) {
                     borderDash: [2, 2],
                     label: {
                       backgroundColor: ThemeColors.sub,
-                      fontFamily: config.fontFamily.replace(/_/g, " "),
+                      fontFamily: Config.fontFamily.replace(/_/g, " "),
                       fontSize: 11,
                       fontStyle: "normal",
                       fontColor: ThemeColors.bg,
@@ -2115,7 +1815,7 @@ function showResult(difficultyFailed = false) {
               obj: completedEvent,
             })
               .then((e) => {
-                accountIconLoading(false);
+                AccountIcon.loading(false);
                 if (e.data == null) {
                   Notifications.add(
                     "Unexpected response from the server: " + e.data,
@@ -2192,7 +1892,7 @@ function showResult(difficultyFailed = false) {
                   }
 
                   if (
-                    config.mode === "time" &&
+                    Config.mode === "time" &&
                     (mode2 == "15" || mode2 == "60") &&
                     DB.getSnapshot() !== null
                   ) {
@@ -2205,7 +1905,7 @@ function showResult(difficultyFailed = false) {
                     const glb = e.data.globalLeaderboard;
                     let glbMemory;
                     try {
-                      glbMemory = DB.getSnapshot().lbMemory[config.mode + mode2]
+                      glbMemory = DB.getSnapshot().lbMemory[Config.mode + mode2]
                         .global;
                     } catch {
                       glbMemory = null;
@@ -2219,7 +1919,7 @@ function showResult(difficultyFailed = false) {
                       dontShowGlobalDiff = true;
                       globalLbDiff = glbMemory - glb.insertedAt;
                       DB.updateLbMemory(
-                        config.mode,
+                        Config.mode,
                         mode2,
                         "global",
                         glb.insertedAt
@@ -2230,7 +1930,7 @@ function showResult(difficultyFailed = false) {
                       if (glb.newBest) {
                         globalLbDiff = glbMemory - glb.insertedAt;
                         DB.updateLbMemory(
-                          config.mode,
+                          Config.mode,
                           mode2,
                           "global",
                           glb.insertedAt
@@ -2240,7 +1940,7 @@ function showResult(difficultyFailed = false) {
                       } else {
                         globalLbDiff = glbMemory - glb.foundAt;
                         DB.updateLbMemory(
-                          config.mode,
+                          Config.mode,
                           mode2,
                           "global",
                           glb.foundAt
@@ -2266,7 +1966,7 @@ function showResult(difficultyFailed = false) {
                     const dlb = e.data.dailyLeaderboard;
                     let dlbMemory;
                     try {
-                      dlbMemory = DB.getSnapshot().lbMemory[config.mode + mode2]
+                      dlbMemory = DB.getSnapshot().lbMemory[Config.mode + mode2]
                         .daily;
                     } catch {
                       dlbMemory = null;
@@ -2280,7 +1980,7 @@ function showResult(difficultyFailed = false) {
                       dontShowDailyDiff = true;
                       dailyLbDiff = dlbMemory - dlb.insertedAt;
                       DB.updateLbMemory(
-                        config.mode,
+                        Config.mode,
                         mode2,
                         "daily",
                         dlb.insertedAt
@@ -2290,7 +1990,7 @@ function showResult(difficultyFailed = false) {
                       if (dlb.newBest) {
                         dailyLbDiff = dlbMemory - dlb.insertedAt;
                         DB.updateLbMemory(
-                          config.mode,
+                          Config.mode,
                           mode2,
                           "daily",
                           dlb.insertedAt
@@ -2300,7 +2000,7 @@ function showResult(difficultyFailed = false) {
                       } else {
                         dailyLbDiff = dlbMemory - dlb.foundAt;
                         DB.updateLbMemory(
-                          config.mode,
+                          Config.mode,
                           mode2,
                           "daily",
                           dlb.foundAt
@@ -2367,11 +2067,11 @@ function showResult(difficultyFailed = false) {
                     //new pb
                     showCrown();
                     DB.saveLocalPB(
-                      config.mode,
+                      Config.mode,
                       mode2,
-                      config.punctuation,
-                      config.language,
-                      config.difficulty,
+                      Config.punctuation,
+                      Config.language,
+                      Config.difficulty,
                       stats.wpm,
                       stats.acc,
                       stats.wpmRaw,
@@ -2389,6 +2089,7 @@ function showResult(difficultyFailed = false) {
                 }
               })
               .catch((e) => {
+                AccountIcon.loading(false);
                 console.error(e);
                 Notifications.add("Could not save result. " + e, -1);
               });
@@ -2422,56 +2123,56 @@ function showResult(difficultyFailed = false) {
 
   let testType = "";
 
-  if (config.mode === "quote") {
+  if (Config.mode === "quote") {
     let qlen = "";
-    if (config.quoteLength === 0) {
+    if (Config.quoteLength === 0) {
       qlen = "short ";
-    } else if (config.quoteLength === 1) {
+    } else if (Config.quoteLength === 1) {
       qlen = "medium ";
-    } else if (config.quoteLength === 2) {
+    } else if (Config.quoteLength === 2) {
       qlen = "long ";
-    } else if (config.quoteLength === 3) {
+    } else if (Config.quoteLength === 3) {
       qlen = "thicc ";
     }
-    testType += qlen + config.mode;
+    testType += qlen + Config.mode;
   } else {
-    testType += config.mode;
+    testType += Config.mode;
   }
-  if (config.mode == "time") {
-    testType += " " + config.time;
-  } else if (config.mode == "words") {
-    testType += " " + config.words;
+  if (Config.mode == "time") {
+    testType += " " + Config.time;
+  } else if (Config.mode == "words") {
+    testType += " " + Config.words;
   }
   if (
-    config.mode != "custom" &&
-    activeFunBox !== "gibberish" &&
-    activeFunBox !== "58008"
+    Config.mode != "custom" &&
+    activeFunbox !== "gibberish" &&
+    activeFunbox !== "58008"
   ) {
     testType += "<br>" + lang;
   }
-  if (config.punctuation) {
+  if (Config.punctuation) {
     testType += "<br>punctuation";
   }
-  if (config.numbers) {
+  if (Config.numbers) {
     testType += "<br>numbers";
   }
-  if (config.blindMode) {
+  if (Config.blindMode) {
     testType += "<br>blind";
   }
-  if (activeFunBox !== "none") {
-    testType += "<br>" + activeFunBox.replace(/_/g, " ");
+  if (activeFunbox !== "none") {
+    testType += "<br>" + activeFunbox.replace(/_/g, " ");
   }
-  if (config.difficulty == "expert") {
+  if (Config.difficulty == "expert") {
     testType += "<br>expert";
-  } else if (config.difficulty == "master") {
+  } else if (Config.difficulty == "master") {
     testType += "<br>master";
   }
 
   $("#result .stats .testType .bottom").html(testType);
 
   let otherText = "";
-  if (config.layout !== "default") {
-    otherText += "<br>" + config.layout;
+  if (Config.layout !== "default") {
+    otherText += "<br>" + Config.layout;
   }
   if (difficultyFailed) {
     otherText += "<br>failed";
@@ -2506,7 +2207,7 @@ function showResult(difficultyFailed = false) {
     $("#result .stats .infoAndTags").removeClass("hidden");
   }
 
-  if (config.mode === "quote") {
+  if (Config.mode === "quote") {
     $("#result .stats .source").removeClass("hidden");
     $("#result .stats .source .bottom").html(randomQuote.source);
   } else {
@@ -2519,10 +2220,10 @@ function showResult(difficultyFailed = false) {
   ChartController.result.update({ duration: 0 });
   ChartController.result.resize();
   swapElements($("#typingTest"), $("#result"), 250, () => {
-    resultCalculating = false;
+    TestUI.setResultCalculating(false);
     $("#words").empty();
     ChartController.result.resize();
-    if (config.alwaysShowWordsHistory) {
+    if (Config.alwaysShowWordsHistory) {
       toggleResultWordsDisplay();
     }
   });
@@ -2550,19 +2251,19 @@ function startTest() {
   restartTimer();
   showTimer();
   $("#liveWpm").text("0");
-  showLiveWpm();
-  showLiveAcc();
+  LiveWpm.show();
+  LiveAcc.show();
   updateTimer();
   clearTimeout(timer);
 
-  if (activeFunBox === "memory") {
+  if (activeFunbox === "memory") {
     memoryFunboxInterval = clearInterval(memoryFunboxInterval);
     memoryFunboxTimer = null;
     $("#wordsWrapper").addClass("hidden");
   }
 
   try {
-    if (config.paceCaret !== "off")
+    if (Config.paceCaret !== "off")
       movePaceCaret(performance.now() + paceCaret.spc * 1000);
   } catch (e) {}
   //use a recursive self-adjusting timer to avoid time drift
@@ -2571,76 +2272,81 @@ function startTest() {
     const delay = expectedStepEnd - performance.now();
     timer = setTimeout(function () {
       time++;
-      $(".pageTest #premidSecondsLeft").text(config.time - time);
+      $(".pageTest #premidSecondsLeft").text(Config.time - time);
       if (
-        config.mode === "time" ||
-        (config.mode === "custom" && CustomText.isTimeRandom)
+        Config.mode === "time" ||
+        (Config.mode === "custom" && CustomText.isTimeRandom)
       ) {
         updateTimer();
       }
       let wpmAndRaw = liveWpmAndRaw();
-      updateLiveWpm(wpmAndRaw.wpm, wpmAndRaw.raw);
+      LiveWpm.update(wpmAndRaw.wpm, wpmAndRaw.raw);
       TestStats.pushToWpmHistory(wpmAndRaw.wpm);
       TestStats.pushToRawHistory(wpmAndRaw.raw);
       Monkey.updateFastOpacity(wpmAndRaw.wpm);
 
       let acc = Misc.roundTo2(TestStats.calculateAccuracy());
 
-      if (activeFunBox === "layoutfluid" && config.mode === "time") {
+      if (activeFunbox === "layoutfluid" && Config.mode === "time") {
         const layouts = ["qwerty", "dvorak", "colemak"];
         let index = 0;
-        index = Math.floor(time / (config.time / 3));
+        index = Math.floor(time / (Config.time / 3));
 
         if (
-          time == Math.floor(config.time / 3) - 3 ||
-          time == (config.time / 3) * 2 - 3
+          time == Math.floor(Config.time / 3) - 3 ||
+          time == (Config.time / 3) * 2 - 3
         ) {
           Notifications.add("3", 0, 1);
         }
         if (
-          time == Math.floor(config.time / 3) - 2 ||
-          time == Math.floor(config.time / 3) * 2 - 2
+          time == Math.floor(Config.time / 3) - 2 ||
+          time == Math.floor(Config.time / 3) * 2 - 2
         ) {
           Notifications.add("2", 0, 1);
         }
         if (
-          time == Math.floor(config.time / 3) - 1 ||
-          time == Math.floor(config.time / 3) * 2 - 1
+          time == Math.floor(Config.time / 3) - 1 ||
+          time == Math.floor(Config.time / 3) * 2 - 1
         ) {
           Notifications.add("1", 0, 1);
         }
 
-        if (config.layout !== layouts[index] && layouts[index] !== undefined) {
+        if (Config.layout !== layouts[index] && layouts[index] !== undefined) {
           Notifications.add(`--- !!! ${layouts[index]} !!! ---`, 0);
         }
         setLayout(layouts[index]);
         setKeymapLayout(layouts[index]);
-        updateHighlightedKeymapKey();
+        Keymap.highlightKey(
+          wordsList[currentWordIndex]
+            .substring(currentInput.length, currentInput.length + 1)
+            .toString()
+            .toUpperCase()
+        );
         settingsGroups.layout.updateButton();
       }
 
       TestStats.pushKeypressesToHistory();
       if (
-        (config.minWpm === "custom" &&
-          wpmAndRaw.wpm < parseInt(config.minWpmCustomSpeed) &&
+        (Config.minWpm === "custom" &&
+          wpmAndRaw.wpm < parseInt(Config.minWpmCustomSpeed) &&
           currentWordIndex > 3) ||
-        (config.minAcc === "custom" && acc < parseInt(config.minAccCustom))
+        (Config.minAcc === "custom" && acc < parseInt(Config.minAccCustom))
       ) {
         clearTimeout(timer);
         failTest();
         return;
       }
       if (
-        config.mode == "time" ||
-        (config.mode === "custom" && CustomText.isTimeRandom)
+        Config.mode == "time" ||
+        (Config.mode === "custom" && CustomText.isTimeRandom)
       ) {
         if (
-          (time >= config.time &&
-            config.time !== 0 &&
-            config.mode === "time") ||
+          (time >= Config.time &&
+            Config.time !== 0 &&
+            Config.mode === "time") ||
           (time >= CustomText.time &&
             CustomText.time !== 0 &&
-            config.mode === "custom")
+            Config.mode === "custom")
         ) {
           //times up
           clearTimeout(timer);
@@ -2660,18 +2366,18 @@ function startTest() {
 function restartTest(withSameWordset = false, nosave = false, event) {
   // if (!manualRestart) {
   //   if (
-  //     (config.mode === "words" && config.words < 1000 && config.words > 0) ||
-  //     (config.mode === "time" && config.time < 3600 && config.time > 0) ||
-  //     config.mode === "quote" ||
-  //     (config.mode === "custom" &&
+  //     (Config.mode === "words" && Config.words < 1000 && Config.words > 0) ||
+  //     (Config.mode === "time" && Config.time < 3600 && Config.time > 0) ||
+  //     Config.mode === "quote" ||
+  //     (Config.mode === "custom" &&
   //       CustomText.isWordRandom &&
   //       CustomText.word < 1000 &&
   //       CustomText.word != 0) ||
-  //     (config.mode === "custom" &&
+  //     (Config.mode === "custom" &&
   //       CustomText.isTimeRandom &&
   //       CustomText.time < 3600 &&
   //       CustomText.time != 0) ||
-  //     (config.mode === "custom" &&
+  //     (Config.mode === "custom" &&
   //       !CustomText.isWordRandom &&
   //       CustomText.text.length < 1000)
   //   ) {
@@ -2686,14 +2392,14 @@ function restartTest(withSameWordset = false, nosave = false, event) {
   //   }
   // }
 
-  if (testRestarting || resultCalculating) {
+  if (TestUI.testRestarting || TestUI.resultCalculating) {
     try {
       event.preventDefault();
     } catch {}
     return;
   }
-  if ($(".pageTest").hasClass("active") && !resultVisible) {
-    if (!manualRestart) {
+  if ($(".pageTest").hasClass("active") && !TestUI.resultVisible) {
+    if (!ManualRestart.get()) {
       // if ((textHasTab && manualRestart) || !textHasTab) {
       if (textHasTab) {
         try {
@@ -2701,18 +2407,18 @@ function restartTest(withSameWordset = false, nosave = false, event) {
         } catch {}
       }
       try {
-        if (config.mode !== "zen") event.preventDefault();
+        if (Config.mode !== "zen") event.preventDefault();
       } catch {}
       if (
         !Misc.canQuickRestart(
-          config.mode,
-          config.words,
-          config.time,
+          Config.mode,
+          Config.words,
+          Config.time,
           CustomText
         )
       ) {
         let message = "Use your mouse to confirm.";
-        if (config.quickTab)
+        if (Config.quickTab)
           message = "Press shift + tab or use your mouse to confirm.";
         Notifications.add("Quick restart disabled. " + message, 0, 3);
         return;
@@ -2733,32 +2439,30 @@ function restartTest(withSameWordset = false, nosave = false, event) {
     // restartCount++;
   }
 
-  if (config.mode == "zen") {
+  if (Config.mode == "zen") {
     $("#words").empty();
   }
 
-  if (modeBeforePractise !== null && !withSameWordset) {
+  if (PractiseMissed.before.mode !== null && !withSameWordset) {
     Notifications.add("Reverting to previous settings.", 0);
-    setMode(modeBeforePractise);
-    setPunctuation(punctuationBeforePractise);
-    setNumbers(numbersBeforePractise);
-    modeBeforePractise = null;
-    punctuationBeforePractise = null;
-    numbersBeforePractise = null;
+    setMode(PractiseMissed.before.mode);
+    setPunctuation(PractiseMissed.before.punctuation);
+    setNumbers(PractiseMissed.before.numbers);
+    PractiseMissed.resetBefore();
   }
 
-  manualRestart = false;
+  ManualRestart.reset();
   clearTimeout(timer);
   time = 0;
   TestStats.restart();
   currentCorrected = "";
   correctedHistory = [];
   ShiftTracker.reset();
-  setFocus(false);
+  Focus.set(false);
   Caret.hide();
   testActive = false;
-  hideLiveWpm();
-  hideLiveAcc();
+  LiveWpm.hide();
+  LiveAcc.hide();
   hideTimer();
   bailout = false;
   paceCaret = null;
@@ -2766,30 +2470,29 @@ function restartTest(withSameWordset = false, nosave = false, event) {
   $("#showWordHistoryButton").removeClass("loaded");
   focusWords();
 
-  currentTestLine = 0;
-  activeWordJumped = false;
+  TestUI.reset();
 
   $("#timerNumber").css("opacity", 0);
   let el = null;
-  if (resultVisible) {
+  if (TestUI.resultVisible) {
     //results are being displayed
     el = $("#result");
   } else {
     //words are being displayed
     el = $("#typingTest");
   }
-  if (resultVisible) {
+  if (TestUI.resultVisible) {
     if (
-      config.randomTheme !== "off" &&
+      Config.randomTheme !== "off" &&
       !pageTransition &&
-      !config.customTheme
+      !Config.customTheme
     ) {
-      ThemeController.randomiseTheme(config);
+      ThemeController.randomiseTheme();
     }
   }
-  resultVisible = false;
+  TestUI.setResultVisible(false);
   pageTransition = true;
-  testRestarting = true;
+  TestUI.setTestRestarting(true);
   el.stop(true, true).animate(
     {
       opacity: 0,
@@ -2808,26 +2511,25 @@ function restartTest(withSameWordset = false, nosave = false, event) {
         sameWordset = true;
         testActive = false;
         currentWordIndex = 0;
-        currentWordElementIndex = 0;
         inputHistory = [];
         currentInput = "";
         initPaceCaret();
         showWords();
       }
-      if (config.mode === "quote") {
+      if (Config.mode === "quote") {
         sameWordset = false;
       }
-      if (config.keymapMode !== "off") {
-        showKeymap();
+      if (Config.keymapMode !== "off") {
+        Keymap.show();
       } else {
-        hideKeymap();
+        Keymap.hide();
       }
       document.querySelector("#miniTimerAndLiveWpm .wpm").innerHTML = "0";
       document.querySelector("#miniTimerAndLiveWpm .acc").innerHTML = "100%";
       document.querySelector("#liveWpm").innerHTML = "0";
       document.querySelector("#liveAcc").innerHTML = "100%";
 
-      if (activeFunBox === "memory") {
+      if (activeFunbox === "memory") {
         memoryFunboxInterval = clearInterval(memoryFunboxInterval);
         memoryFunboxTimer = Math.round(Math.pow(wordsList.length, 1.2));
         memoryFunboxInterval = setInterval(() => {
@@ -2844,36 +2546,41 @@ function restartTest(withSameWordset = false, nosave = false, event) {
           }
         }, 1000);
 
-        if (config.keymapMode === "next") {
+        if (Config.keymapMode === "next") {
           setKeymapMode("react");
         }
       }
 
       let mode2 = "";
-      if (config.mode === "time") {
-        mode2 = config.time;
-      } else if (config.mode === "words") {
-        mode2 = config.words;
-      } else if (config.mode === "custom") {
+      if (Config.mode === "time") {
+        mode2 = Config.time;
+      } else if (Config.mode === "words") {
+        mode2 = Config.words;
+      } else if (Config.mode === "custom") {
         mode2 = "custom";
-      } else if (config.mode === "quote") {
+      } else if (Config.mode === "quote") {
         mode2 = randomQuote.id;
       }
       let fbtext = "";
-      if (activeFunBox !== "none") {
-        fbtext = " " + activeFunBox;
+      if (activeFunbox !== "none") {
+        fbtext = " " + activeFunbox;
       }
       $(".pageTest #premidTestMode").text(
-        `${config.mode} ${mode2} ${config.language}${fbtext}`
+        `${Config.mode} ${mode2} ${Config.language}${fbtext}`
       );
-      $(".pageTest #premidSecondsLeft").text(config.time);
+      $(".pageTest #premidSecondsLeft").text(Config.time);
 
-      if (activeFunBox === "layoutfluid") {
+      if (activeFunbox === "layoutfluid") {
         setLayout("qwerty");
         settingsGroups.layout.updateButton();
         setKeymapLayout("qwerty");
         settingsGroups.keymapLayout.updateButton();
-        updateHighlightedKeymapKey();
+        Keymap.highlightKey(
+          wordsList[currentWordIndex]
+            .substring(currentInput.length, currentInput.length + 1)
+            .toString()
+            .toUpperCase()
+        );
       }
 
       $("#result").addClass("hidden");
@@ -2891,18 +2598,17 @@ function restartTest(withSameWordset = false, nosave = false, event) {
           },
           125,
           () => {
-            testRestarting = false;
+            TestUI.setTestRestarting(false);
             resetPaceCaret();
             hideCrown();
             clearTimeout(timer);
             if ($("#commandLineWrapper").hasClass("hidden")) focusWords();
             ChartController.result.update();
-            updateTestModesNotice(
+            TestUI.updateModesNotice(
               sameWordset,
               textHasTab,
               paceCaret,
-              activeFunBox,
-              config
+              activeFunbox
             );
             pageTransition = false;
             // console.log(TestStats.incompleteSeconds);
@@ -2911,12 +2617,6 @@ function restartTest(withSameWordset = false, nosave = false, event) {
         );
     }
   );
-}
-
-function focusWords() {
-  if (!$("#wordsWrapper").hasClass("hidden")) {
-    $("#wordsInput").focus();
-  }
 }
 
 function changePage(page) {
@@ -2939,7 +2639,7 @@ function changePage(page) {
     // restartCount = 0;
     // incompleteTestSeconds = 0;
     TestStats.resetIncomplete();
-    manualRestart = true;
+    ManualRestart.set();
     restartTest();
   } else if (page == "about") {
     pageTransition = true;
@@ -2995,16 +2695,16 @@ function changePage(page) {
 }
 
 function setMode(mode, nosave) {
-  if (testRestarting) return;
-  if (mode !== "words" && activeFunBox === "memory") {
+  if (TestUI.testRestarting) return;
+  if (mode !== "words" && activeFunbox === "memory") {
     Notifications.add("Memory funbox can only be used with words mode.", 0);
     return;
   }
 
-  config.mode = mode;
+  ConfigSet.mode(mode);
   $("#top .config .mode .text-button").removeClass("active");
   $("#top .config .mode .text-button[mode='" + mode + "']").addClass("active");
-  if (config.mode == "time") {
+  if (Config.mode == "time") {
     $("#top .config .wordCount").addClass("hidden");
     $("#top .config .time").removeClass("hidden");
     $("#top .config .customText").addClass("hidden");
@@ -3013,7 +2713,7 @@ function setMode(mode, nosave) {
     $("#top .config .punctuationMode").removeClass("hidden");
     $("#top .config .numbersMode").removeClass("hidden");
     $("#top .config .quoteLength").addClass("hidden");
-  } else if (config.mode == "words") {
+  } else if (Config.mode == "words") {
     $("#top .config .wordCount").removeClass("hidden");
     $("#top .config .time").addClass("hidden");
     $("#top .config .customText").addClass("hidden");
@@ -3022,19 +2722,18 @@ function setMode(mode, nosave) {
     $("#top .config .punctuationMode").removeClass("hidden");
     $("#top .config .numbersMode").removeClass("hidden");
     $("#top .config .quoteLength").addClass("hidden");
-  } else if (config.mode == "custom") {
+  } else if (Config.mode == "custom") {
     if (
-      activeFunBox === "58008" ||
-      activeFunBox === "gibberish" ||
-      activeFunBox === "ascii"
+      activeFunbox === "58008" ||
+      activeFunbox === "gibberish" ||
+      activeFunbox === "ascii"
     ) {
-      activeFunBox = "none";
-      updateTestModesNotice(
+      activeFunbox = "none";
+      TestUI.updateModesNotice(
         sameWordset,
         textHasTab,
         paceCaret,
-        activeFunBox,
-        config
+        activeFunbox
       );
     }
     $("#top .config .wordCount").addClass("hidden");
@@ -3047,7 +2746,7 @@ function setMode(mode, nosave) {
     $("#top .config .quoteLength").addClass("hidden");
     setPunctuation(false, true);
     setNumbers(false, true);
-  } else if (config.mode == "quote") {
+  } else if (Config.mode == "quote") {
     setToggleSettings(false, nosave);
     $("#top .config .wordCount").addClass("hidden");
     $("#top .config .time").addClass("hidden");
@@ -3058,14 +2757,14 @@ function setMode(mode, nosave) {
     $("#top .config .numbersMode").removeClass("hidden");
     $("#result .stats .source").removeClass("hidden");
     $("#top .config .quoteLength").removeClass("hidden");
-  } else if (config.mode == "zen") {
+  } else if (Config.mode == "zen") {
     $("#top .config .wordCount").addClass("hidden");
     $("#top .config .time").addClass("hidden");
     $("#top .config .customText").addClass("hidden");
     $("#top .config .punctuationMode").addClass("hidden");
     $("#top .config .numbersMode").addClass("hidden");
     $("#top .config .quoteLength").addClass("hidden");
-    if (config.paceCaret != "off") {
+    if (Config.paceCaret != "off") {
       Notifications.add(`Pace caret will not work with zen mode.`, 0);
     }
     // setPaceCaret("off", true);
@@ -3078,7 +2777,7 @@ function liveWpmAndRaw() {
   let correctWordChars = 0;
   let spaces = 0;
   for (let i = 0; i < inputHistory.length; i++) {
-    let word = config.mode == "zen" ? inputHistory[i] : wordsList[i];
+    let word = Config.mode == "zen" ? inputHistory[i] : wordsList[i];
     if (inputHistory[i] == word) {
       //the word is correct
       //+1 for space
@@ -3095,7 +2794,7 @@ function liveWpmAndRaw() {
   if (wordsList[currentWordIndex] == currentInput) {
     correctWordChars += currentInput.length;
   }
-  if (activeFunBox === "nospace") {
+  if (activeFunbox === "nospace") {
     spaces = 0;
   }
   chars += currentInput.length;
@@ -3108,139 +2807,8 @@ function liveWpmAndRaw() {
   };
 }
 
-function updateLiveWpm(wpm, raw) {
-  if (!testActive || !config.showLiveWpm) {
-    hideLiveWpm();
-  } else {
-    showLiveWpm();
-  }
-  let number = wpm;
-  if (config.blindMode) {
-    number = raw;
-  }
-  if (config.alwaysShowCPM) {
-    number = Math.round(number * 5);
-  }
-  document.querySelector("#miniTimerAndLiveWpm .wpm").innerHTML = number;
-  document.querySelector("#liveWpm").innerHTML = number;
-}
-
-function updateLiveAcc(acc) {
-  if (!testActive || !config.showLiveAcc) {
-    hideLiveAcc();
-  } else {
-    showLiveAcc();
-  }
-  let number = Math.floor(acc);
-  if (config.blindMode) {
-    number = 100;
-  }
-  document.querySelector("#miniTimerAndLiveWpm .acc").innerHTML = number + "%";
-  document.querySelector("#liveAcc").innerHTML = number + "%";
-}
-
-function showLiveWpm() {
-  if (!config.showLiveWpm) return;
-  if (!testActive) return;
-  if (config.timerStyle === "mini") {
-    // $("#miniTimerAndLiveWpm .wpm").css("opacity", config.timerOpacity);
-    if (!$("#miniTimerAndLiveWpm .wpm").hasClass("hidden")) return;
-    $("#miniTimerAndLiveWpm .wpm")
-      .removeClass("hidden")
-      .css("opacity", 0)
-      .animate(
-        {
-          opacity: config.timerOpacity,
-        },
-        125
-      );
-  } else {
-    // $("#liveWpm").css("opacity", config.timerOpacity);
-    if (!$("#liveWpm").hasClass("hidden")) return;
-    $("#liveWpm").removeClass("hidden").css("opacity", 0).animate(
-      {
-        opacity: config.timerOpacity,
-      },
-      125
-    );
-  }
-}
-
-function hideLiveWpm() {
-  // $("#liveWpm").css("opacity", 0);
-  // $("#miniTimerAndLiveWpm .wpm").css("opacity", 0);
-  $("#liveWpm").animate(
-    {
-      opacity: config.timerOpacity,
-    },
-    125,
-    () => {
-      $("#liveWpm").addClass("hidden");
-    }
-  );
-  $("#miniTimerAndLiveWpm .wpm").animate(
-    {
-      opacity: config.timerOpacity,
-    },
-    125,
-    () => {
-      $("#miniTimerAndLiveWpm .wpm").addClass("hidden");
-    }
-  );
-}
-
-function showLiveAcc() {
-  if (!config.showLiveAcc) return;
-  if (!testActive) return;
-  if (config.timerStyle === "mini") {
-    // $("#miniTimerAndLiveWpm .wpm").css("opacity", config.timerOpacity);
-    if (!$("#miniTimerAndLiveWpm .acc").hasClass("hidden")) return;
-    $("#miniTimerAndLiveWpm .acc")
-      .removeClass("hidden")
-      .css("opacity", 0)
-      .animate(
-        {
-          opacity: config.timerOpacity,
-        },
-        125
-      );
-  } else {
-    // $("#liveWpm").css("opacity", config.timerOpacity);
-    if (!$("#liveAcc").hasClass("hidden")) return;
-    $("#liveAcc").removeClass("hidden").css("opacity", 0).animate(
-      {
-        opacity: config.timerOpacity,
-      },
-      125
-    );
-  }
-}
-
-function hideLiveAcc() {
-  // $("#liveWpm").css("opacity", 0);
-  // $("#miniTimerAndLiveWpm .wpm").css("opacity", 0);
-  $("#liveAcc").animate(
-    {
-      opacity: config.timerOpacity,
-    },
-    125,
-    () => {
-      $("#liveAcc").addClass("hidden");
-    }
-  );
-  $("#miniTimerAndLiveWpm .acc").animate(
-    {
-      opacity: config.timerOpacity,
-    },
-    125,
-    () => {
-      $("#miniTimerAndLiveWpm .acc").addClass("hidden");
-    }
-  );
-}
-
 function toggleResultWordsDisplay() {
-  if (resultVisible) {
+  if (TestUI.resultVisible) {
     if ($("#resultWordsHistory").stop(true, true).hasClass("hidden")) {
       //show
 
@@ -3295,11 +2863,11 @@ async function loadWordsHistory() {
           incorrect: 0,
           missed: 0,
         };
-        let length = config.mode == "zen" ? input.length : word.length;
+        let length = Config.mode == "zen" ? input.length : word.length;
         for (let c = 0; c < length; c++) {
           if (c < input.length) {
             //on char that still has a word list pair
-            if (config.mode == "zen" || input[c] == word[c]) {
+            if (Config.mode == "zen" || input[c] == word[c]) {
               wordstats.correct++;
             } else {
               wordstats.incorrect++;
@@ -3309,15 +2877,15 @@ async function loadWordsHistory() {
             wordstats.missed++;
           }
         }
-        if (wordstats.incorrect !== 0 || config.mode !== "time") {
-          if (config.mode != "zen" && input !== word) {
+        if (wordstats.incorrect !== 0 || Config.mode !== "time") {
+          if (Config.mode != "zen" && input !== word) {
             wordEl = `<div class='word error' input="${input
               .replace(/"/g, "&quot;")
               .replace(/ /g, "_")}">`;
           }
         }
       } else {
-        if (config.mode != "zen" && input !== word) {
+        if (Config.mode != "zen" && input !== word) {
           wordEl = `<div class='word error' input="${input
             .replace(/"/g, "&quot;")
             .replace(/ /g, "_")}">`;
@@ -3325,7 +2893,7 @@ async function loadWordsHistory() {
       }
 
       let loop;
-      if (config.mode == "zen" || input.length > word.length) {
+      if (Config.mode == "zen" || input.length > word.length) {
         //input is longer - extra characters possible (loop over input)
         loop = input.length;
       } else {
@@ -3348,8 +2916,8 @@ async function loadWordsHistory() {
         ) {
           extraCorrected = "extraCorrected";
         }
-        if (config.mode == "zen" || word[c] !== undefined) {
-          if (config.mode == "zen" || input[c] === word[c]) {
+        if (Config.mode == "zen" || word[c] !== undefined) {
+          if (Config.mode == "zen" || input[c] === word[c]) {
             if (correctedChar === input[c] || correctedChar === undefined) {
               wordEl += `<letter class="correct ${extraCorrected}">${input[c]}</letter>`;
             } else {
@@ -3392,22 +2960,6 @@ async function loadWordsHistory() {
   $("#resultWordsHistory .words").html(wordsHTML);
   $("#showWordHistoryButton").addClass("loaded");
   return true;
-}
-
-function flipTestColors(tf) {
-  if (tf) {
-    $("#words").addClass("flipped");
-  } else {
-    $("#words").removeClass("flipped");
-  }
-}
-
-function applyColorfulMode(tc) {
-  if (tc) {
-    $("#words").addClass("colorfulMode");
-  } else {
-    $("#words").removeClass("colorfulMode");
-  }
 }
 
 function showEditTags(action, id, name) {
@@ -3556,159 +3108,6 @@ function tagsEdit() {
   }
 }
 
-function showCapsWarning() {
-  if ($("#capsWarning").hasClass("hidden")) {
-    $("#capsWarning").removeClass("hidden");
-  }
-}
-
-function hideCapsWarning() {
-  if (!$("#capsWarning").hasClass("hidden")) {
-    $("#capsWarning").addClass("hidden");
-  }
-}
-
-function showCustomTextPopup() {
-  if ($("#customTextPopupWrapper").hasClass("hidden")) {
-    if ($("#customTextPopup .check input").prop("checked")) {
-      $("#customTextPopup .inputs .randomInputFields").removeClass("hidden");
-    } else {
-      $("#customTextPopup .inputs .randomInputFields").addClass("hidden");
-    }
-    $("#customTextPopupWrapper")
-      .stop(true, true)
-      .css("opacity", 0)
-      .removeClass("hidden")
-      .animate({ opacity: 1 }, 100, () => {
-        let newtext = CustomText.text.join(" ");
-        newtext = newtext.replace(/\n /g, "\n");
-        $("#customTextPopup textarea").val(newtext);
-        $("#customTextPopup .wordcount input").val(CustomText.word);
-        $("#customTextPopup .time input").val(CustomText.time);
-        $("#customTextPopup textarea").focus();
-      });
-  }
-}
-
-function hideCustomTextPopup() {
-  if (!$("#customTextPopupWrapper").hasClass("hidden")) {
-    $("#customTextPopupWrapper")
-      .stop(true, true)
-      .css("opacity", 1)
-      .animate(
-        {
-          opacity: 0,
-        },
-        100,
-        (e) => {
-          $("#customTextPopupWrapper").addClass("hidden");
-        }
-      );
-  }
-}
-
-$("#customTextPopupWrapper").mousedown((e) => {
-  if ($(e.target).attr("id") === "CustomTextPopupWrapper") {
-    hideCustomTextPopup();
-  }
-});
-
-$("#customTextPopup .inputs .check input").change(() => {
-  if ($("#customTextPopup .check input").prop("checked")) {
-    $("#customTextPopup .inputs .randomInputFields").removeClass("hidden");
-  } else {
-    $("#customTextPopup .inputs .randomInputFields").addClass("hidden");
-  }
-});
-
-$("#customTextPopup textarea").keypress((e) => {
-  if (e.code === "Enter" && e.ctrlKey) {
-    $("#customTextPopup .button").click();
-  }
-});
-
-$("#customTextPopup .randomInputFields .wordcount input").keypress((e) => {
-  $("#customTextPopup .randomInputFields .time input").val("");
-});
-
-$("#customTextPopup .randomInputFields .time input").keypress((e) => {
-  $("#customTextPopup .randomInputFields .wordcount input").val("");
-});
-
-$("#customTextPopup .button").click(() => {
-  let text = $("#customTextPopup textarea").val();
-  text = text.trim();
-  // text = text.replace(/[\r]/gm, " ");
-  text = text.replace(/\\\\t/gm, "\t");
-  text = text.replace(/\\\\n/gm, "\n");
-  text = text.replace(/\\t/gm, "\t");
-  text = text.replace(/\\n/gm, "\n");
-  text = text.replace(/ +/gm, " ");
-  // text = text.replace(/(\r\n)+/g, "\r\n");
-  // text = text.replace(/(\n)+/g, "\n");
-  // text = text.replace(/(\r)+/g, "\r");
-  text = text.replace(/( *(\r\n|\r|\n) *)/g, "\n ");
-  if ($("#customTextPopup .typographyCheck input").prop("checked")) {
-    text = Misc.cleanTypographySymbols(text);
-  }
-  // text = Misc.remove_non_ascii(text);
-  text = text.replace(/[\u2060]/g, "");
-  text = text.split(" ");
-  CustomText.setText(text);
-  CustomText.setWord(parseInt($("#customTextPopup .wordcount input").val()));
-  CustomText.setTime(parseInt($("#customTextPopup .time input").val()));
-
-  CustomText.setIsWordRandom(
-    $("#customTextPopup .check input").prop("checked") &&
-      !isNaN(CustomText.word)
-  );
-  CustomText.setIsTimeRandom(
-    $("#customTextPopup .check input").prop("checked") &&
-      !isNaN(CustomText.time)
-  );
-
-  if (
-    isNaN(CustomText.word) &&
-    isNaN(CustomText.time) &&
-    (CustomText.isTimeRandom || CustomText.isWordRandom)
-  ) {
-    Notifications.add(
-      "You need to specify word count or time in seconds to start a random custom test.",
-      0,
-      5
-    );
-    return;
-  }
-
-  if (
-    !isNaN(CustomText.word) &&
-    !isNaN(CustomText.time) &&
-    (CustomText.isTimeRandom || CustomText.isWordRandom)
-  ) {
-    Notifications.add(
-      "You need to pick between word count or time in seconds to start a random custom test.",
-      0,
-      5
-    );
-    return;
-  }
-
-  if (
-    (CustomText.isWordRandom && parseInt(CustomText.word) === 0) ||
-    (CustomText.isTimeRandom && parseInt(CustomText.time) === 0)
-  ) {
-    Notifications.add(
-      "Infinite words! Make sure to use Bail Out from the command line to save your result.",
-      0,
-      7
-    );
-  }
-
-  manualRestart = true;
-  restartTest();
-  hideCustomTextPopup();
-});
-
 function showCustomMode2Popup(mode) {
   if ($("#customMode2PopupWrapper").hasClass("hidden")) {
     if (mode == "time") {
@@ -3747,41 +3146,78 @@ function hideCustomMode2Popup() {
 
 async function showQuoteSearchPopup() {
   if ($("#quoteSearchPopupWrapper").hasClass("hidden")) {
-    let quotes = await Misc.getQuotes(config.language);
-    let table = $("#quoteSearchPopup .searchResultTable");
-    let numberOfSearchResults = 0;
-    table.find("tbody").empty();
     $("#quoteSearchPopup input").val("");
-    for (let i = 0; i < 5; i++) {
-      let quote = quotes.quotes[i];
-      table.find("tbody").append(`
-      <tr class="searchResult" id=${quote.id}>
-              <td class="alignRight"><div class="fixedHeight">${quote.id}</div></td>
-              <td class="alignRight"><div class="fixedHeight">${quote.length}</div></td>
-              <td>
-                <div class="fixedHeight">${quote.text}</div>
-              </td>
-              <td>
-              <div class="fixedHeight">${quote.source}</div>
-              </td>
-              <td><i class="fas fa-chevron-right"></i></td>
-            </tr>
-      `);
-    }
-    quotes.groups.forEach((group) => {
-      group.forEach((quote) => {
-        numberOfSearchResults++;
-      });
-    });
-    document.getElementById("extraResults").innerHTML =
-      numberOfSearchResults - 5 + " more results";
     $("#quoteSearchPopupWrapper")
       .stop(true, true)
       .css("opacity", 0)
       .removeClass("hidden")
       .animate({ opacity: 1 }, 100, (e) => {
         $("#quoteSearchPopup input").focus().select();
+        updateQuoteSearchResults("");
       });
+  }
+}
+
+async function updateQuoteSearchResults(searchText) {
+  let quotes = await Misc.getQuotes(Config.language);
+  let reg = new RegExp(searchText, "i");
+  let found = [];
+  quotes.quotes.forEach((quote) => {
+    let quoteText = quote["text"].replace(/[.,'"/#!$%^&*;:{}=\-_`~()]/g, "");
+    let test1 = reg.test(quoteText);
+    if (test1) {
+      found.push(quote);
+    }
+  });
+  quotes.quotes.forEach((quote) => {
+    let quoteSource = quote["source"].replace(
+      /[.,'"/#!$%^&*;:{}=\-_`~()]/g,
+      ""
+    );
+    let quoteId = quote["id"];
+    let test2 = reg.test(quoteSource);
+    let test3 = reg.test(quoteId);
+    if ((test2 || test3) && found.filter((q) => q.id == quote.id).length == 0) {
+      found.push(quote);
+    }
+  });
+  $("#quoteSearchResults").remove();
+  $("#quoteSearchPopup").append(
+    '<div class="quoteSearchResults" id="quoteSearchResults"></div>'
+  );
+  let resultsList = $("#quoteSearchResults");
+  let resultListLength = 0;
+
+  found.forEach(async (quote) => {
+    let lengthDesc;
+    if (quote.length < 101) {
+      lengthDesc = "short";
+    } else if (quote.length < 301) {
+      lengthDesc = "medium";
+    } else if (quote.length < 601) {
+      lengthDesc = "long";
+    } else {
+      lengthDesc = "thicc";
+    }
+    if (resultListLength++ < 100) {
+      resultsList.append(`
+      <div class="searchResult" id="${quote.id}">
+        <div class="text">${quote.text}</div>
+        <div class="id"><div class="sub">id</div>${quote.id}</div>
+        <div class="length"><div class="sub">length</div>${lengthDesc}</div>
+        <div class="source"><div class="sub">source</div>${quote.source}</div>
+        <div class="resultChevron"><i class="fas fa-chevron-right"></i></div>
+      </div>
+      `);
+    }
+  });
+  if (found.length > 100) {
+    $("#extraResults").html(
+      found.length +
+        " results <span style='opacity: 0.5'>(only showing 100)</span>"
+    );
+  } else {
+    $("#extraResults").html(found.length + " results");
   }
 }
 
@@ -3804,45 +3240,45 @@ function hideQuoteSearchPopup() {
 
 async function initPaceCaret() {
   let mode2 = "";
-  if (config.mode === "time") {
-    mode2 = config.time;
-  } else if (config.mode === "words") {
-    mode2 = config.words;
-  } else if (config.mode === "custom") {
+  if (Config.mode === "time") {
+    mode2 = Config.time;
+  } else if (Config.mode === "words") {
+    mode2 = Config.words;
+  } else if (Config.mode === "custom") {
     mode2 = "custom";
-  } else if (config.mode === "quote") {
+  } else if (Config.mode === "quote") {
     mode2 = randomQuote.id;
   }
   let wpm;
-  if (config.paceCaret === "pb") {
+  if (Config.paceCaret === "pb") {
     wpm = await DB.getLocalPB(
-      config.mode,
+      Config.mode,
       mode2,
-      config.punctuation,
-      config.language,
-      config.difficulty
+      Config.punctuation,
+      Config.language,
+      Config.difficulty
     );
-  } else if (config.paceCaret === "average") {
+  } else if (Config.paceCaret === "average") {
     let mode2 = "";
-    if (config.mode === "time") {
-      mode2 = config.time;
-    } else if (config.mode === "words") {
-      mode2 = config.words;
-    } else if (config.mode === "custom") {
+    if (Config.mode === "time") {
+      mode2 = Config.time;
+    } else if (Config.mode === "words") {
+      mode2 = Config.words;
+    } else if (Config.mode === "custom") {
       mode2 = "custom";
-    } else if (config.mode === "quote") {
+    } else if (Config.mode === "quote") {
       mode2 = randomQuote.id;
     }
     wpm = await DB.getUserAverageWpm10(
-      config.mode,
+      Config.mode,
       mode2,
-      config.punctuation,
-      config.language,
-      config.difficulty
+      Config.punctuation,
+      Config.language,
+      Config.difficulty
     );
     console.log("avg pace " + wpm);
-  } else if (config.paceCaret === "custom") {
-    wpm = config.paceCaretCustomSpeed;
+  } else if (Config.paceCaret === "custom") {
+    wpm = Config.paceCaretCustomSpeed;
   }
 
   if (wpm < 1 || wpm == false || wpm == undefined || Number.isNaN(wpm)) {
@@ -3865,17 +3301,11 @@ async function initPaceCaret() {
     timeout: null,
   };
 
-  updateTestModesNotice(
-    sameWordset,
-    textHasTab,
-    paceCaret,
-    activeFunBox,
-    config
-  );
+  TestUI.updateModesNotice(sameWordset, textHasTab, paceCaret, activeFunbox);
 }
 
 function movePaceCaret(expectedStepEnd) {
-  if (paceCaret === null || !testActive || resultVisible) {
+  if (paceCaret === null || !testActive || TestUI.resultVisible) {
     return;
   }
   if ($("#paceCaret").hasClass("hidden")) {
@@ -3894,7 +3324,7 @@ function movePaceCaret(expectedStepEnd) {
       paceCaret.currentLetterIndex = -1;
       paceCaret.currentWordIndex++;
     }
-    if (!config.blindMode) {
+    if (!Config.blindMode) {
       if (paceCaret.correction < 0) {
         while (paceCaret.correction < 0) {
           paceCaret.currentLetterIndex--;
@@ -3936,7 +3366,7 @@ function movePaceCaret(expectedStepEnd) {
     try {
       let newIndex =
         paceCaret.currentWordIndex -
-        (currentWordIndex - currentWordElementIndex);
+        (currentWordIndex - TestUI.currentWordElementIndex);
       if (paceCaret.currentLetterIndex === -1) {
         currentLetter = document
           .querySelectorAll("#words .word")
@@ -3970,7 +3400,7 @@ function movePaceCaret(expectedStepEnd) {
 
     let duration = expectedStepEnd - performance.now();
 
-    if (config.smoothCaret) {
+    if (Config.smoothCaret) {
       caret.stop(true, true).animate(
         {
           left: newLeft,
@@ -4001,11 +3431,11 @@ function movePaceCaret(expectedStepEnd) {
 }
 
 function resetPaceCaret() {
-  if (config.paceCaret === "off") return;
+  if (Config.paceCaret === "off") return;
   if (!$("#paceCaret").hasClass("hidden")) {
     $("#paceCaret").addClass("hidden");
   }
-  if (config.mode === "zen") return;
+  if (Config.mode === "zen") return;
 
   let caret = $("#paceCaret");
   let firstLetter = document
@@ -4035,82 +3465,13 @@ $("#customMode2Popup input").keypress((e) => {
 });
 //Quote search
 $("#quoteSearchPopup .searchBox").keydown((e) => {
-  setTimeout(async () => {
-    let quotes = await Misc.getQuotes(config.language);
+  setTimeout(() => {
     let searchText = document.getElementById("searchBox").value;
     searchText = searchText
       .replace(/[.,'"/#!$%^&*;:{}=\-_`~()]/g, "")
       .replace(/[-[\]{}()*+?.,\\^$|#\s]/g, "\\$&");
-    let reg = new RegExp(searchText, "i");
-    let found = [];
-    let numberOfSearchResults = 0;
-    quotes.quotes.forEach((quote) => {
-      let quoteText = quote["text"].replace(/[.,'"/#!$%^&*;:{}=\-_`~()]/g, "");
-      let quoteSource = quote["source"].replace(
-        /[.,'"/#!$%^&*;:{}=\-_`~()]/g,
-        ""
-      );
-      let quoteId = quote["id"];
-      let test1 = reg.test(quoteText);
-      let test2 = reg.test(quoteSource);
-      let test3 = reg.test(quoteId);
 
-      if (test1 || test2 || test3) {
-        found.push(quote);
-        numberOfSearchResults++;
-      }
-    });
-    let table = $("#quoteSearchPopup .searchResultTable");
-    table.find("tbody").empty();
-    for (let i = 0; i < 5; i++) {
-      if (found[i] === undefined) continue;
-      // if(found[i].text.length > 100){
-      //   found[i].text = found[i].text.substring(0, 100) + "...";
-      // }
-      // if(found[i].source.length > 50){
-      //   found[i].source = found[i].source.substring(0, 50) + "...";
-      // }
-      table.find("tbody").append(`
-      <tr class="searchResult" id=${found[i].id}>
-              <td class="alignRight"><div class="fixedHeight">${found[i].id}</div></td>
-              <td class="alignRight"><div class="fixedHeight">${found[i].length}</div></td>
-              <td>
-                <div class="fixedHeight">${found[i].text}</div>
-              </td>
-              <td>
-              <div class="fixedHeight">${found[i].source}</div>
-              </td>
-              <td><i class="fas fa-chevron-right"></i></td>
-            </tr>
-      `);
-    }
-    if (numberOfSearchResults > 5) {
-      $("#extraResults").css("opacity", "1");
-      document.getElementById("extraResults").innerHTML =
-        numberOfSearchResults - 5 + " more results";
-    } else if (numberOfSearchResults < 5) {
-      $("#extraResults").css("opacity", "1");
-      document.getElementById("extraResults").innerHTML = "No other results";
-      for (let i = 0; i < 5 - numberOfSearchResults; i++) {
-        table.find("tbody").append(`
-          <tr class="fillerResult" id="">
-              <td class="alignRight"><div class="fixedHeight">-</div></td>
-              <td class="alignRight"><div class="fixedHeight">-</div></td>
-              <td>
-                <div class="fixedHeight">-</div>
-              </td>
-              <td>
-              <div class="fixedHeight">-</div>
-              </td>
-              <td></td>
-            </tr>
-      `);
-      }
-    }
-    if (numberOfSearchResults == 0) {
-      $("#extraResults").css("opacity", "1");
-      document.getElementById("extraResults").innerHTML = "No search results";
-    }
+    updateQuoteSearchResults(searchText);
   }, 0.1); //arbitrarily v. small time as it's only to allow text to input before searching
 });
 //sets quote id to searched quote clicked
@@ -4131,28 +3492,10 @@ $("#customMode2Popup .button").click(() => {
   applyMode2Popup();
 });
 
-$("#quoteSearchPopup .button").click(() => {
-  if (!isNaN(document.getElementById("searchBox").value)) {
-    applyQuoteSearchPopup();
-  } else {
-    let results = document.getElementsByClassName("searchResult");
-    if (results.length > 0) {
-      selectedQuoteId = parseInt(results[0].getAttribute("id"));
-      applyQuoteSearchPopup(selectedQuoteId);
-    }
-  }
+$(document).on("click", "#quoteSearchResults .searchResult", (e) => {
+  selectedQuoteId = parseInt($(e.currentTarget).attr("id"));
+  applyQuoteSearchPopup(selectedQuoteId);
 });
-
-$(document).on(
-  "click",
-  "#quoteSearchPopup .searchResultTable tbody tr",
-  (e) => {
-    if ($(e.currentTarget).hasClass("searchResult")) {
-      selectedQuoteId = parseInt($(e.currentTarget).attr("id"));
-      applyQuoteSearchPopup(selectedQuoteId);
-    }
-  }
-);
 
 $("#quoteSearchPopup input").keypress((e) => {
   if (e.keyCode == 13) {
@@ -4168,28 +3511,6 @@ $("#quoteSearchPopup input").keypress((e) => {
   }
 });
 
-function updateKeytips() {
-  if (config.swapEscAndTab) {
-    $(".pageSettings .tip").html(`
-    tip: You can also change all these settings quickly using the
-    command line (
-    <key>tab</key>
-    )`);
-    $("#bottom .keyTips").html(`
-    <key>esc</key> - restart test<br>
-      <key>tab</key> - command line`);
-  } else {
-    $(".pageSettings .tip").html(`
-    tip: You can also change all these settings quickly using the
-    command line (
-    <key>esc</key>
-    )`);
-    $("#bottom .keyTips").html(`
-    <key>tab</key> - restart test<br>
-      <key>esc</key> - command line`);
-  }
-}
-
 function applyMode2Popup() {
   let mode = $("#customMode2Popup").attr("mode");
   let val = parseInt($("#customMode2Popup input").val());
@@ -4197,7 +3518,7 @@ function applyMode2Popup() {
   if (mode == "time") {
     if (val !== null && !isNaN(val) && val >= 0) {
       setTimeConfig(val);
-      manualRestart = true;
+      ManualRestart.set();
       restartTest();
       if (val >= 1800) {
         Notifications.add("Stay safe and take breaks!", 0);
@@ -4214,7 +3535,7 @@ function applyMode2Popup() {
   } else if (mode == "words") {
     if (val !== null && !isNaN(val) && val >= 0) {
       setWordCount(val);
-      manualRestart = true;
+      ManualRestart.set();
       restartTest();
       if (val > 2000) {
         Notifications.add("Stay safe and take breaks!", 0);
@@ -4240,76 +3561,12 @@ function applyQuoteSearchPopup(val) {
   if (val !== null && !isNaN(val) && val >= 0) {
     setQuoteLength(-2, false, false);
     selectedQuoteId = val;
-    manualRestart = true;
+    ManualRestart.set();
     restartTest();
   } else {
     Notifications.add("Quote ID must be at least 1", 0);
   }
   hideQuoteSearchPopup();
-}
-
-function lineJump(currentTop) {
-  //last word of the line
-  if (currentTestLine > 0) {
-    let hideBound = currentTop;
-    if (activeWordJumped) {
-      hideBound = activeWordTopBeforeJump;
-    }
-    activeWordJumped = false;
-
-    let toHide = [];
-    let wordElements = $("#words .word");
-    for (let i = 0; i < currentWordElementIndex; i++) {
-      if ($(wordElements[i]).hasClass("hidden")) continue;
-      let forWordTop = Math.floor(wordElements[i].offsetTop);
-      if (forWordTop < hideBound - 10) {
-        toHide.push($($("#words .word")[i]));
-      }
-    }
-    const wordHeight = $(document.querySelector(".word")).outerHeight(true);
-    if (config.smoothLineScroll && toHide.length > 0) {
-      lineTransition = true;
-      $("#words").prepend(
-        `<div class="smoothScroller" style="position: fixed;height:${wordHeight}px;width:100%"></div>`
-      );
-      $("#words .smoothScroller").animate(
-        {
-          height: 0,
-        },
-        125,
-        () => {
-          $("#words .smoothScroller").remove();
-        }
-      );
-      $("#paceCaret").animate(
-        {
-          top: document.querySelector("#paceCaret").offsetTop - wordHeight,
-        },
-        125
-      );
-      $("#words").animate(
-        {
-          marginTop: `-${wordHeight}px`,
-        },
-        125,
-        () => {
-          activeWordTop = document.querySelector("#words .active").offsetTop;
-
-          currentWordElementIndex -= toHide.length;
-          lineTransition = false;
-          toHide.forEach((el) => el.remove());
-          $("#words").css("marginTop", "0");
-        }
-      );
-    } else {
-      toHide.forEach((el) => el.remove());
-      currentWordElementIndex -= toHide.length;
-      $("#paceCaret").css({
-        top: document.querySelector("#paceCaret").offsetTop - wordHeight,
-      });
-    }
-  }
-  currentTestLine++;
 }
 
 $(document).on("click", "#top .logo", (e) => {
@@ -4322,7 +3579,7 @@ $(document).on("click", "#top .config .wordCount .text-button", (e) => {
     showCustomMode2Popup("words");
   } else {
     setWordCount(wrd);
-    manualRestart = true;
+    ManualRestart.set();
     restartTest();
   }
 });
@@ -4333,7 +3590,7 @@ $(document).on("click", "#top .config .time .text-button", (e) => {
     showCustomMode2Popup("time");
   } else {
     setTimeConfig(mode);
-    manualRestart = true;
+    ManualRestart.set();
 
     restartTest();
   }
@@ -4349,25 +3606,25 @@ $(document).on("click", "#top .config .quoteLength .text-button", (e) => {
       len = [0, 1, 2, 3];
     }
     setQuoteLength(len, false, e.shiftKey);
-    manualRestart = true;
+    ManualRestart.set();
     restartTest();
   }
 });
 
 $(document).on("click", "#top .config .customText .text-button", () => {
-  showCustomTextPopup();
+  CustomTextPopup.show(restartTest);
 });
 
 $(document).on("click", "#top .config .punctuationMode .text-button", () => {
   togglePunctuation();
-  manualRestart = true;
+  ManualRestart.set();
 
   restartTest();
 });
 
 $(document).on("click", "#top .config .numbersMode .text-button", () => {
   toggleNumbers();
-  manualRestart = true;
+  ManualRestart.set();
 
   restartTest();
 });
@@ -4380,7 +3637,7 @@ $(document).on("click", "#top .config .mode .text-button", (e) => {
   if ($(e.currentTarget).hasClass("active")) return;
   const mode = $(e.currentTarget).attr("mode");
   setMode(mode);
-  manualRestart = true;
+  ManualRestart.set();
   restartTest();
 });
 
@@ -4390,7 +3647,7 @@ $(document).on("click", "#top #menu .icon-button", (e) => {
     Leaderboards.show();
   } else {
     const href = $(e.currentTarget).attr("href");
-    manualRestart = true;
+    ManualRestart.set();
     changePage(href.replace("/", ""));
   }
 });
@@ -4416,8 +3673,8 @@ $(document).on("keypress", "#restartTestButton", (event) => {
   if (event.keyCode == 13) {
     if (
       testActive &&
-      config.repeatQuotes === "typing" &&
-      config.mode === "quote"
+      Config.repeatQuotes === "typing" &&
+      Config.mode === "quote"
     ) {
       restartTest(true);
     } else {
@@ -4427,12 +3684,12 @@ $(document).on("keypress", "#restartTestButton", (event) => {
 });
 
 $(document.body).on("click", "#restartTestButton", () => {
-  manualRestart = true;
-  if (resultCalculating) return;
+  ManualRestart.set();
+  if (TestUI.resultCalculating) return;
   if (
     testActive &&
-    config.repeatQuotes === "typing" &&
-    config.mode === "quote"
+    Config.repeatQuotes === "typing" &&
+    Config.mode === "quote"
   ) {
     restartTest(true);
   } else {
@@ -4440,46 +3697,14 @@ $(document.body).on("click", "#restartTestButton", () => {
   }
 });
 
-function initPractiseMissedWords() {
-  if (Object.keys(TestStats.missedWords).length == 0) {
-    Notifications.add("You haven't missed any words.", 0);
-    return;
-  }
-  let mode = modeBeforePractise === null ? config.mode : modeBeforePractise;
-  let punctuation =
-    punctuationBeforePractise === null
-      ? config.punctuation
-      : punctuationBeforePractise;
-  let numbers =
-    numbersBeforePractise === null ? config.numbers : numbersBeforePractise;
-  setMode("custom");
-  let newCustomText = [];
-  Object.keys(TestStats.missedWords).forEach((missedWord) => {
-    for (let i = 0; i < TestStats.missedWords[missedWord]; i++) {
-      newCustomText.push(missedWord);
-    }
-  });
-  CustomText.setText(newCustomText);
-  CustomText.setIsWordRandom(true);
-  CustomText.setWord(50);
-
-  modeBeforePractise = null;
-  punctuationBeforePractise = null;
-  numbersBeforePractise = null;
-  restartTest();
-  modeBeforePractise = mode;
-  punctuationBeforePractise = punctuation;
-  numbersBeforePractise = numbers;
-}
-
 $(document).on("keypress", "#practiseMissedWordsButton", (event) => {
   if (event.keyCode == 13) {
-    initPractiseMissedWords();
+    PractiseMissed.init(setMode, restartTest);
   }
 });
 
 $(document.body).on("click", "#practiseMissedWordsButton", () => {
-  initPractiseMissedWords();
+  PractiseMissed.init(setMode, restartTest);
 });
 
 $(document).on("keypress", "#nextTestButton", (event) => {
@@ -4489,7 +3714,7 @@ $(document).on("keypress", "#nextTestButton", (event) => {
 });
 
 $(document.body).on("click", "#nextTestButton", () => {
-  manualRestart = true;
+  ManualRestart.set();
   restartTest();
 });
 
@@ -4504,26 +3729,22 @@ $(document.body).on("click", "#showWordHistoryButton", () => {
 });
 
 $(document.body).on("click", "#restartTestButtonWithSameWordset", () => {
-  if (config.mode == "zen") {
+  if (Config.mode == "zen") {
     Notifications.add("Repeat test disabled in zen mode");
     return;
   }
-  manualRestart = true;
+  ManualRestart.set();
   restartTest(true);
 });
 
 $(document).on("keypress", "#restartTestButtonWithSameWordset", (event) => {
-  if (config.mode == "zen") {
+  if (Config.mode == "zen") {
     Notifications.add("Repeat test disabled in zen mode");
     return;
   }
   if (event.keyCode == 13) {
     restartTest(true);
   }
-});
-
-$(document.body).on("click", "#copyResultToClipboardButton", () => {
-  copyResultToClipboard();
 });
 
 $(document.body).on("click", ".version", () => {
@@ -4584,21 +3805,21 @@ $("#wordsInput").keypress((event) => {
 });
 
 $("#wordsInput").on("focus", () => {
-  if (!resultVisible && config.showOutOfFocusWarning) {
+  if (!TestUI.resultVisible && Config.showOutOfFocusWarning) {
     OutOfFocus.hide();
   }
-  Caret.show(config);
+  Caret.show(currentInput);
 });
 
 $("#wordsInput").on("focusout", () => {
-  if (!resultVisible && config.showOutOfFocusWarning) {
+  if (!TestUI.resultVisible && Config.showOutOfFocusWarning) {
     OutOfFocus.show();
   }
   Caret.hide();
 });
 
 $(window).resize(() => {
-  Caret.updatePosition(currentInput, config);
+  Caret.updatePosition(currentInput);
 });
 
 $(document).mousemove(function (event) {
@@ -4606,7 +3827,7 @@ $(document).mousemove(function (event) {
     $("#top").hasClass("focus") &&
     (event.originalEvent.movementX > 0 || event.originalEvent.movementY > 0)
   ) {
-    setFocus(false);
+    Focus.set(false);
   }
 });
 
@@ -4625,6 +3846,7 @@ $(document).on("click", "#testModesNotice .text-button", (event) => {
 });
 
 $(document).on("click", "#commandLineMobileButton", () => {
+  currentCommands = [commands];
   showCommandLine();
 });
 
@@ -4633,7 +3855,7 @@ let dontInsertSpace = false;
 $(document).keyup((event) => {
   if (!event.originalEvent.isTrusted) return;
 
-  if (resultVisible) return;
+  if (TestUI.resultVisible) return;
   let now = performance.now();
   let diff = Math.abs(TestStats.keypressTimings.duration.current - now);
   if (TestStats.keypressTimings.duration.current !== -1) {
@@ -4648,15 +3870,8 @@ $(document).keyup((event) => {
 $(document).keydown(function (event) {
   if (!(event.key == " ") && !event.originalEvent.isTrusted) return;
 
-  if (!resultVisible) {
-    let now = performance.now();
-    let diff = Math.abs(TestStats.keypressTimings.spacing.current - now);
-    if (TestStats.keypressTimings.spacing.current !== -1) {
-      TestStats.pushKeypressSpacing(diff);
-      // keypressStats.spacing.array.push(diff);
-    }
-    TestStats.setKeypressSpacing(now);
-    // keypressStats.spacing.current = now;
+  if (!TestUI.resultVisible) {
+    TestStats.recordKeypressSpacing();
   }
 
   Monkey.type();
@@ -4673,19 +3888,19 @@ $(document).keydown(function (event) {
     pageTestActive &&
     !commandLineVisible &&
     !modePopupVisible &&
-    !resultVisible &&
+    !TestUI.resultVisible &&
     !wordsFocused &&
     event.key !== "Enter"
   ) {
     focusWords();
     wordsFocused = true;
-    // if (config.showOutOfFocusWarning) return;
+    // if (Config.showOutOfFocusWarning) return;
   }
 
   //tab
   if (
-    (event.key == "Tab" && !config.swapEscAndTab) ||
-    (event.key == "Escape" && config.swapEscAndTab)
+    (event.key == "Tab" && !Config.swapEscAndTab) ||
+    (event.key == "Escape" && Config.swapEscAndTab)
   ) {
     handleTab(event);
     // event.preventDefault();
@@ -4705,30 +3920,24 @@ $(document).keydown(function (event) {
 
   // keypressStats.duration.current = performance.now();
   TestStats.setKeypressDuration(performance.now());
-  try {
-    if (
-      !config.capsLockBackspace &&
-      event.originalEvent.getModifierState("CapsLock")
-    ) {
-      showCapsWarning();
-    } else {
-      hideCapsWarning();
-    }
-  } catch {}
 
-  if (testRestarting) {
+  if (TestUI.testRestarting) {
     return;
   }
 
   //backspace
   const isBackspace =
     event.key === "Backspace" ||
-    (config.capsLockBackspace && event.key === "CapsLock");
+    (Config.capsLockBackspace && event.key === "CapsLock");
   if (isBackspace && wordsFocused) {
     handleBackspace(event);
   }
 
-  if (event.key === "Enter" && activeFunBox === "58008" && wordsFocused) {
+  if (
+    event.key === "Enter" &&
+    activeFunbox.activeFunbox === "58008" &&
+    wordsFocused
+  ) {
     event.key = " ";
   }
 
@@ -4742,11 +3951,11 @@ $(document).keydown(function (event) {
   }
 
   let acc = Misc.roundTo2(TestStats.calculateAccuracy());
-  updateLiveAcc(acc);
+  LiveAcc.update(acc);
 });
 
 function handleTab(event) {
-  if (resultCalculating) {
+  if (TestUI.resultCalculating) {
     event.preventDefault();
   }
   if ($("#customTextPopup .textarea").is(":focus")) {
@@ -4771,20 +3980,20 @@ function handleTab(event) {
     return;
   } else if (
     $(".pageTest").hasClass("active") &&
-    !resultCalculating &&
+    !TestUI.resultCalculating &&
     $("#commandLineWrapper").hasClass("hidden") &&
     $("#simplePopupWrapper").hasClass("hidden")
   ) {
-    if (config.quickTab) {
-      if (config.mode == "zen" && !event.shiftKey) {
+    if (Config.quickTab) {
+      if (Config.mode == "zen" && !event.shiftKey) {
         //ignore
       } else {
-        if (event.shiftKey) manualRestart = true;
+        if (event.shiftKey) ManualRestart.set();
 
         if (
           testActive &&
-          config.repeatQuotes === "typing" &&
-          config.mode === "quote"
+          Config.repeatQuotes === "typing" &&
+          Config.mode === "quote"
         ) {
           restartTest(true, false, event);
         } else {
@@ -4793,16 +4002,16 @@ function handleTab(event) {
       }
     } else {
       if (
-        !resultVisible &&
+        !TestUI.resultVisible &&
         ((textHasTab && event.shiftKey) ||
-          (!textHasTab && config.mode !== "zen") ||
-          (config.mode === "zen" && event.shiftKey))
+          (!textHasTab && Config.mode !== "zen") ||
+          (Config.mode === "zen" && event.shiftKey))
       ) {
         event.preventDefault();
         $("#restartTestButton").focus();
       }
     }
-  } else if (config.quickTab) {
+  } else if (Config.quickTab) {
     changePage("test");
   }
 
@@ -4811,9 +4020,9 @@ function handleTab(event) {
   //   (
   //     (!event.shiftKey && !textHasTab) ||
   //     (event.shiftKey && textHasTab) ||
-  //     resultVisible
+  //     TestUI.resultVisible
   //   ) &&
-  //   config.quickTab &&
+  //   Config.quickTab &&
   //   !$(".pageLogin").hasClass("active") &&
   //   !resultCalculating &&
   //   $("#commandLineWrapper").hasClass("hidden") &&
@@ -4822,16 +4031,16 @@ function handleTab(event) {
   //   event.preventDefault();
   //   if ($(".pageTest").hasClass("active")) {
   //     if (
-  //       (config.mode === "words" && config.words < 1000) ||
-  //       (config.mode === "time" && config.time < 3600) ||
-  //       config.mode === "quote" ||
-  //       (config.mode === "custom" &&
+  //       (Config.mode === "words" && Config.words < 1000) ||
+  //       (Config.mode === "time" && Config.time < 3600) ||
+  //       Config.mode === "quote" ||
+  //       (Config.mode === "custom" &&
   //         CustomText.isWordRandom &&
   //         CustomText.word < 1000) ||
-  //       (config.mode === "custom" &&
+  //       (Config.mode === "custom" &&
   //         CustomText.isTimeRandom &&
   //         CustomText.time < 3600) ||
-  //       (config.mode === "custom" &&
+  //       (Config.mode === "custom" &&
   //         !CustomText.isWordRandom &&
   //         CustomText.text.length < 1000)
   //     ) {
@@ -4852,10 +4061,10 @@ function handleTab(event) {
   //     changePage("test");
   //   }
   // } else if (
-  //   !config.quickTab &&
+  //   !Config.quickTab &&
   //   textHasTab &&
   //   event.shiftKey &&
-  //   !resultVisible
+  //   !TestUI.resultVisible
   // ) {
   //   event.preventDefault();
   //   $("#restartTestButton").focus();
@@ -4868,17 +4077,17 @@ function handleBackspace(event) {
   if (
     currentInput == "" &&
     inputHistory.length > 0 &&
-    currentWordElementIndex > 0
+    TestUI.currentWordElementIndex > 0
   ) {
     //if nothing is inputted and its not the first word
     if (
       (inputHistory[currentWordIndex - 1] == wordsList[currentWordIndex - 1] &&
-        !config.freedomMode) ||
+        !Config.freedomMode) ||
       $($(".word")[currentWordIndex - 1]).hasClass("hidden")
     ) {
       return;
     } else {
-      if (config.confidenceMode === "on" || config.confidenceMode === "max")
+      if (Config.confidenceMode === "on" || Config.confidenceMode === "max")
         return;
       if (event["ctrlKey"] || event["altKey"]) {
         currentInput = "";
@@ -4887,17 +4096,18 @@ function handleBackspace(event) {
       } else {
         currentInput = inputHistory.pop();
         currentCorrected = correctedHistory.pop();
-        if (activeFunBox === "nospace") {
+        if (activeFunbox === "nospace") {
           currentInput = currentInput.substring(0, currentInput.length - 1);
         }
       }
       currentWordIndex--;
-      currentWordElementIndex--;
-      updateActiveElement(true);
-      updateWordElement(!config.blindMode);
+      TestUI.setCurrentWordElementIndex(TestUI.currentWordElementIndex - 1);
+      TestUI.updateActiveElement(true);
+      toggleScriptFunbox(wordsList[currentWordIndex]);
+      updateWordElement(!Config.blindMode);
     }
   } else {
-    if (config.confidenceMode === "max") return;
+    if (Config.confidenceMode === "max") return;
     if (event["ctrlKey"] || event["altKey"]) {
       let limiter = " ";
       if (currentInput.lastIndexOf("-") > currentInput.lastIndexOf(" "))
@@ -4922,51 +4132,61 @@ function handleBackspace(event) {
     } else {
       currentInput = currentInput.substring(0, currentInput.length - 1);
     }
-    updateWordElement(!config.blindMode);
+    updateWordElement(!Config.blindMode);
   }
-  Sound.playClick(config.playSoundOnClick);
-  if (config.keymapMode === "react") {
-    flashPressedKeymapKey(event.code, true);
-  } else if (config.keymapMode === "next") {
-    updateHighlightedKeymapKey();
+  Sound.playClick(Config.playSoundOnClick);
+  if (Config.keymapMode === "react") {
+    Keymap.flashKey(event.code, true);
+  } else if (Config.keymapMode === "next") {
+    Keymap.highlightKey(
+      wordsList[currentWordIndex]
+        .substring(currentInput.length, currentInput.length + 1)
+        .toString()
+        .toUpperCase()
+    );
   }
-  Caret.updatePosition(currentInput, config);
+  Caret.updatePosition(currentInput);
 }
 
 function handleSpace(event, isEnter) {
   if (!testActive) return;
   if (currentInput === "") return;
   // let nextWord = wordsList[currentWordIndex + 1];
-  // if ((isEnter && nextWord !== "\n") && (isEnter && activeFunBox !== "58008")) return;
+  // if ((isEnter && nextWord !== "\n") && (isEnter && activeFunbox !== "58008")) return;
   // if (!isEnter && nextWord === "\n") return;
   event.preventDefault();
 
-  if (config.mode == "zen") {
+  if (Config.mode == "zen") {
     $("#words .word.active").removeClass("active");
     $("#words").append("<div class='word active'></div>");
   }
 
   let currentWord = wordsList[currentWordIndex];
-  if (activeFunBox === "layoutfluid" && config.mode !== "time") {
+  if (activeFunbox === "layoutfluid" && Config.mode !== "time") {
     const layouts = ["qwerty", "dvorak", "colemak"];
     let index = 0;
     let outof = wordsList.length;
     index = Math.floor((inputHistory.length + 1) / (outof / 3));
-    if (config.layout !== layouts[index] && layouts[index] !== undefined) {
+    if (Config.layout !== layouts[index] && layouts[index] !== undefined) {
       Notifications.add(`--- !!! ${layouts[index]} !!! ---`, 0);
     }
     setLayout(layouts[index]);
     setKeymapLayout(layouts[index]);
-    updateHighlightedKeymapKey();
+    Keymap.highlightKey(
+      wordsList[currentWordIndex]
+        .substring(currentInput.length, currentInput.length + 1)
+        .toString()
+        .toUpperCase()
+    );
     settingsGroups.layout.updateButton();
   }
   dontInsertSpace = true;
-  if (currentWord == currentInput || config.mode == "zen") {
+  if (currentWord == currentInput || Config.mode == "zen") {
     //correct word or in zen mode
     if (
       paceCaret !== null &&
       paceCaret.wordsStatus[currentWordIndex] === true &&
-      !config.blindMode
+      !Config.blindMode
     ) {
       paceCaret.wordsStatus[currentWordIndex] = undefined;
       paceCaret.correction -= currentWord.length + 1;
@@ -4975,31 +4195,32 @@ function handleSpace(event, isEnter) {
     inputHistory.push(currentInput);
     currentInput = "";
     currentWordIndex++;
-    currentWordElementIndex++;
-    updateActiveElement();
-    Caret.updatePosition(currentInput, config);
+    TestUI.setCurrentWordElementIndex(TestUI.currentWordElementIndex + 1);
+    TestUI.updateActiveElement();
+    toggleScriptFunbox(wordsList[currentWordIndex]);
+    Caret.updatePosition(currentInput);
     TestStats.incrementKeypressCount();
     TestStats.pushKeypressWord(currentWordIndex);
     // currentKeypress.count++;
     // currentKeypress.words.push(currentWordIndex);
-    if (activeFunBox !== "nospace") {
-      Sound.playClick(config.playSoundOnClick);
+    if (activeFunbox !== "nospace") {
+      Sound.playClick(Config.playSoundOnClick);
     }
   } else {
     //incorrect word
     if (
       paceCaret !== null &&
       paceCaret.wordsStatus[currentWordIndex] === undefined &&
-      !config.blindMode
+      !Config.blindMode
     ) {
       paceCaret.wordsStatus[currentWordIndex] = true;
       paceCaret.correction += currentWord.length + 1;
     }
-    if (activeFunBox !== "nospace") {
-      if (!config.playSoundOnError || config.blindMode) {
-        Sound.playClick(config.playSoundOnClick);
+    if (activeFunbox !== "nospace") {
+      if (!Config.playSoundOnError || Config.blindMode) {
+        Sound.playClick(Config.playSoundOnClick);
       } else {
-        Sound.playError(config.playSoundOnError);
+        Sound.playError(Config.playSoundOnError);
       }
     }
     TestStats.incrementAccuracy(false);
@@ -5015,32 +4236,33 @@ function handleSpace(event, isEnter) {
           currentCorrected.substring(cil + 1);
       }
     }
-    if (config.stopOnError != "off") {
-      if (config.difficulty == "expert" || config.difficulty == "master") {
+    if (Config.stopOnError != "off") {
+      if (Config.difficulty == "expert" || Config.difficulty == "master") {
         //failed due to diff when pressing space
         failTest();
         return;
       }
-      if (config.stopOnError == "word") {
+      if (Config.stopOnError == "word") {
         currentInput += " ";
         updateWordElement(true);
-        Caret.updatePosition(currentInput, config);
+        Caret.updatePosition(currentInput);
       }
       return;
     }
-    if (config.blindMode) $("#words .word.active letter").addClass("correct");
+    if (Config.blindMode) $("#words .word.active letter").addClass("correct");
     inputHistory.push(currentInput);
-    highlightBadWord(currentWordElementIndex, !config.blindMode);
+    highlightBadWord(TestUI.currentWordElementIndex, !Config.blindMode);
     currentInput = "";
     currentWordIndex++;
-    currentWordElementIndex++;
-    updateActiveElement();
-    Caret.updatePosition(currentInput, config);
+    TestUI.setCurrentWordElementIndex(TestUI.currentWordElementIndex + 1);
+    TestUI.updateActiveElement();
+    toggleScriptFunbox(wordsList[currentWordIndex]);
+    Caret.updatePosition(currentInput);
     // currentKeypress.count++;
     // currentKeypress.words.push(currentWordIndex);
     TestStats.incrementKeypressCount();
     TestStats.pushKeypressWord(currentWordIndex);
-    if (config.difficulty == "expert" || config.difficulty == "master") {
+    if (Config.difficulty == "expert" || Config.difficulty == "master") {
       failTest();
       return;
     } else if (currentWordIndex == wordsList.length) {
@@ -5055,49 +4277,56 @@ function handleSpace(event, isEnter) {
   currentCorrected = "";
 
   if (
-    !config.showAllLines ||
-    config.mode == "time" ||
+    !Config.showAllLines ||
+    Config.mode == "time" ||
     (CustomText.isWordRandom && CustomText.word == 0) ||
     CustomText.isTimeRandom
   ) {
     let currentTop = Math.floor(
-      document.querySelectorAll("#words .word")[currentWordElementIndex - 1]
-        .offsetTop
+      document.querySelectorAll("#words .word")[
+        TestUI.currentWordElementIndex - 1
+      ].offsetTop
     );
     let nextTop;
     try {
       nextTop = Math.floor(
-        document.querySelectorAll("#words .word")[currentWordElementIndex]
-          .offsetTop
+        document.querySelectorAll("#words .word")[
+          TestUI.currentWordElementIndex
+        ].offsetTop
       );
     } catch (e) {
       nextTop = 0;
     }
 
-    if ((nextTop > currentTop || activeWordJumped) && !lineTransition) {
-      lineJump(currentTop);
+    if (nextTop > currentTop && !TestUI.lineTransition) {
+      TestUI.lineJump(currentTop);
     }
   } //end of line wrap
 
-  Caret.updatePosition(currentInput, config);
+  Caret.updatePosition(currentInput);
 
-  if (config.keymapMode === "react") {
-    flashPressedKeymapKey(event.code, true);
-  } else if (config.keymapMode === "next") {
-    updateHighlightedKeymapKey();
+  if (Config.keymapMode === "react") {
+    Keymap.flashKey(event.code, true);
+  } else if (Config.keymapMode === "next") {
+    Keymap.highlightKey(
+      wordsList[currentWordIndex]
+        .substring(currentInput.length, currentInput.length + 1)
+        .toString()
+        .toUpperCase()
+    );
   }
   if (
-    config.mode === "words" ||
-    config.mode === "custom" ||
-    config.mode === "quote" ||
-    config.mode === "zen"
+    Config.mode === "words" ||
+    Config.mode === "custom" ||
+    Config.mode === "quote" ||
+    Config.mode === "zen"
   ) {
     updateTimer();
   }
   if (
-    config.mode == "time" ||
-    config.mode == "words" ||
-    config.mode == "custom"
+    Config.mode == "time" ||
+    Config.mode == "words" ||
+    Config.mode == "custom"
   ) {
     addWord();
   }
@@ -5154,7 +4383,7 @@ function handleAlpha(event) {
   //insert space for expert and master or strict space,
   //otherwise dont do anything
   if (event.key === " ") {
-    if (config.difficulty !== "normal" || config.strictSpace) {
+    if (Config.difficulty !== "normal" || Config.strictSpace) {
       if (dontInsertSpace) {
         dontInsertSpace = false;
         return;
@@ -5166,7 +4395,7 @@ function handleAlpha(event) {
 
   if (event.key === "Tab") {
     if (
-      config.mode !== "zen" &&
+      Config.mode !== "zen" &&
       (!textHasTab || (textHasTab && event.shiftKey))
     ) {
       return;
@@ -5176,13 +4405,13 @@ function handleAlpha(event) {
   }
 
   if (event.key === "Enter") {
-    if (event.shiftKey && config.mode == "zen") {
+    if (event.shiftKey && Config.mode == "zen") {
       showResult();
     }
     if (
       event.shiftKey &&
-      ((config.mode == "time" && config.time === 0) ||
-        (config.mode == "words" && config.words === 0))
+      ((Config.mode == "time" && Config.time === 0) ||
+        (Config.mode == "words" && Config.words === 0))
     ) {
       bailout = true;
       showResult();
@@ -5213,12 +4442,12 @@ function handleAlpha(event) {
     if (!testActive) return;
   }
 
-  setFocus(true);
+  Focus.set(true);
   Caret.stopAnimation();
 
   //show dead keys
   if (event.key === "Dead") {
-    Sound.playClick(config.playSoundOnClick);
+    Sound.playClick(Config.playSoundOnClick);
     $(
       document.querySelector("#words .word.active").querySelectorAll("letter")[
         currentInput.length
@@ -5230,7 +4459,7 @@ function handleAlpha(event) {
   //check if the char typed was correct
   let thisCharCorrect;
   let nextCharInWord;
-  if (config.mode != "zen") {
+  if (Config.mode != "zen") {
     nextCharInWord = wordsList[currentWordIndex].substring(
       currentInput.length,
       currentInput.length + 1
@@ -5243,7 +4472,7 @@ function handleAlpha(event) {
     thisCharCorrect = false;
   }
 
-  if (config.language.split("_")[0] == "russian") {
+  if (Config.language.split("_")[0] == "russian") {
     if ((event.key === "е" || event.key === "e") && nextCharInWord == "ё") {
       event.key = nextCharInWord;
       thisCharCorrect = true;
@@ -5257,7 +4486,7 @@ function handleAlpha(event) {
     }
   }
 
-  if (config.mode == "zen") {
+  if (Config.mode == "zen") {
     thisCharCorrect = true;
   }
 
@@ -5287,7 +4516,7 @@ function handleAlpha(event) {
   }
 
   if (
-    config.oppositeShiftMode === "on" &&
+    Config.oppositeShiftMode === "on" &&
     ShiftTracker.isUsingOppositeShift(originalEvent) === false
   ) {
     thisCharCorrect = false;
@@ -5303,7 +4532,7 @@ function handleAlpha(event) {
   } else {
     TestStats.incrementAccuracy(true);
     thisCharCorrect = true;
-    if (config.mode == "zen") {
+    if (Config.mode == "zen") {
       //making the input visible to the user
       $("#words .active").append(
         `<letter class="correct">${event.key}</letter>`
@@ -5312,17 +4541,17 @@ function handleAlpha(event) {
   }
 
   if (thisCharCorrect) {
-    Sound.playClick(config.playSoundOnClick);
+    Sound.playClick(Config.playSoundOnClick);
   } else {
-    if (!config.playSoundOnError || config.blindMode) {
-      Sound.playClick(config.playSoundOnClick);
+    if (!Config.playSoundOnError || Config.blindMode) {
+      Sound.playClick(Config.playSoundOnClick);
     } else {
-      Sound.playError(config.playSoundOnError);
+      Sound.playError(Config.playSoundOnError);
     }
   }
 
   if (
-    config.oppositeShiftMode === "on" &&
+    Config.oppositeShiftMode === "on" &&
     ShiftTracker.isUsingOppositeShift(originalEvent) === false
   )
     return;
@@ -5346,48 +4575,53 @@ function handleAlpha(event) {
   // currentKeypress.count++;
   // currentKeypress.words.push(currentWordIndex);
 
-  if (config.stopOnError == "letter" && !thisCharCorrect) {
+  if (Config.stopOnError == "letter" && !thisCharCorrect) {
     return;
   }
 
   //update the active word top, but only once
   if (currentInput.length === 1 && currentWordIndex === 0) {
-    activeWordTop = document.querySelector("#words .active").offsetTop;
+    TestUI.setActiveWordTop(document.querySelector("#words .active").offsetTop);
   }
 
   //max length of the input is 20 unless in zen mode
   if (
-    config.mode == "zen" ||
+    Config.mode == "zen" ||
     currentInput.length < wordsList[currentWordIndex].length + 20
   ) {
     currentInput += event["key"];
   }
 
-  if (!thisCharCorrect && config.difficulty == "master") {
+  if (!thisCharCorrect && Config.difficulty == "master") {
     failTest();
     return;
   }
 
   //keymap
-  if (config.keymapMode === "react") {
-    flashPressedKeymapKey(event.key, thisCharCorrect);
-  } else if (config.keymapMode === "next") {
-    updateHighlightedKeymapKey();
+  if (Config.keymapMode === "react") {
+    Keymap.flashKey(event.key, thisCharCorrect);
+  } else if (Config.keymapMode === "next") {
+    Keymap.highlightKey(
+      wordsList[currentWordIndex]
+        .substring(currentInput.length, currentInput.length + 1)
+        .toString()
+        .toUpperCase()
+    );
   }
 
-  activeWordTopBeforeJump = activeWordTop;
-  updateWordElement(!config.blindMode);
+  let activeWordTopBeforeJump = TestUI.activeWordTop;
+  updateWordElement(!Config.blindMode);
 
-  if (config.mode != "zen") {
+  if (Config.mode != "zen") {
     //not applicable to zen mode
     //auto stop the test if the last word is correct
     let currentWord = wordsList[currentWordIndex];
     let lastindex = currentWordIndex;
     if (
       (currentWord == currentInput ||
-        (config.quickEnd &&
+        (Config.quickEnd &&
           currentWord.length == currentInput.length &&
-          config.stopOnError == "off")) &&
+          Config.stopOnError == "off")) &&
       lastindex == wordsList.length - 1
     ) {
       inputHistory.push(currentInput);
@@ -5401,7 +4635,7 @@ function handleAlpha(event) {
 
   //simulate space press in nospace funbox
   if (
-    (activeFunBox === "nospace" &&
+    (activeFunbox === "nospace" &&
       currentInput.length === wordsList[currentWordIndex].length) ||
     (event.key === "\n" && thisCharCorrect)
   ) {
@@ -5412,45 +4646,42 @@ function handleAlpha(event) {
     });
   }
 
-  //check if the word jumped
   let newActiveTop = document.querySelector("#words .word.active").offsetTop;
-  if (activeWordTopBeforeJump < newActiveTop && !lineTransition) {
-    activeWordJumped = true;
-  } else {
-    activeWordJumped = false;
-  }
-
   //stop the word jump by slicing off the last character, update word again
-  if (activeWordJumped && currentInput.length > 1) {
-    if (config.mode == "zen") {
+  if (
+    activeWordTopBeforeJump < newActiveTop &&
+    !TestUI.lineTransition &&
+    currentInput.length > 1
+  ) {
+    if (Config.mode == "zen") {
       let currentTop = Math.floor(
-        document.querySelectorAll("#words .word")[currentWordElementIndex - 1]
-          .offsetTop
+        document.querySelectorAll("#words .word")[
+          TestUI.currentWordElementIndex - 1
+        ].offsetTop
       );
-      if (!config.showAllLines) lineJump(currentTop);
+      if (!Config.showAllLines) TestUI.lineJump(currentTop);
     } else {
       currentInput = currentInput.slice(0, -1);
-      updateWordElement(!config.blindMode);
-      activeWordJumped = false;
+      updateWordElement(!Config.blindMode);
     }
   }
 
-  Caret.updatePosition(currentInput, config);
+  Caret.updatePosition(currentInput);
 }
 
 window.addEventListener("beforeunload", (event) => {
   // Cancel the event as stated by the standard.
   if (
-    (config.mode === "words" && config.words < 1000) ||
-    (config.mode === "time" && config.time < 3600) ||
-    config.mode === "quote" ||
-    (config.mode === "custom" &&
+    (Config.mode === "words" && Config.words < 1000) ||
+    (Config.mode === "time" && Config.time < 3600) ||
+    Config.mode === "quote" ||
+    (Config.mode === "custom" &&
       CustomText.isWordRandom &&
       CustomText.word < 1000) ||
-    (config.mode === "custom" &&
+    (Config.mode === "custom" &&
       CustomText.isTimeRandom &&
       CustomText.time < 1000) ||
-    (config.mode === "custom" &&
+    (Config.mode === "custom" &&
       !CustomText.isWordRandom &&
       CustomText.text.length < 1000)
   ) {
@@ -5484,7 +4715,7 @@ if (window.location.hostname === "localhost") {
   );
 }
 
-manualRestart = true;
+ManualRestart.set();
 
 let configLoadDone;
 let configLoadPromise = new Promise((v) => {
@@ -5496,7 +4727,7 @@ Misc.getReleasesFromGitHub();
 // getPatreonNames();
 
 $(document).on("mouseenter", "#resultWordsHistory .words .word", (e) => {
-  if (resultVisible) {
+  if (TestUI.resultVisible) {
     let input = $(e.currentTarget).attr("input");
     if (input != undefined)
       $(e.currentTarget).append(
@@ -5511,7 +4742,7 @@ $(document).on("click", "#bottom .leftright .right .current-theme", (e) => {
   if (e.shiftKey) {
     toggleCustomTheme();
   } else {
-    // if (config.customTheme) {
+    // if (Config.customTheme) {
     //   toggleCustomTheme();
     // }
     currentCommands.push(commandsThemes);
@@ -5554,7 +4785,7 @@ $(document).ready(() => {
     $("#top .config").removeClass("hidden");
   }
   $("body").css("transition", ".25s");
-  if (config.quickTab) {
+  if (Config.quickTab) {
     $("#restartTestButton").addClass("hidden");
   }
   if (!Misc.getCookie("merchbannerclosed")) {
@@ -5613,7 +4844,7 @@ $(".merchBanner .fas").click((event) => {
 $(".pageTest #copyWordsListButton").click(async (event) => {
   try {
     let words;
-    if (config.mode == "zen") {
+    if (Config.mode == "zen") {
       words = inputHistory.join(" ");
     } else {
       words = wordsList.slice(0, inputHistory.length).join(" ");
@@ -5693,7 +4924,7 @@ async function setupChallenge(challengeName) {
         setDifficulty(challenge.parameters[3], true);
       }
     }
-    manualRestart = true;
+    ManualRestart.set();
     restartTest(false, true);
     notitext = challenge.message;
     $("#top .config").removeClass("hidden");

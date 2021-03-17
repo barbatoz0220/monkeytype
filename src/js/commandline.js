@@ -123,15 +123,13 @@ let commands = {
       display: "Toggle live wpm display",
       exec: () => {
         toggleShowLiveWpm();
-        saveConfigToCookie();
       },
     },
     {
       id: "toggleShowLiveAcc",
       display: "Toggle live accuracy display",
       exec: () => {
-        toggleShowLiveAcc();
-        saveConfigToCookie();
+        LiveAcc.show();
       },
     },
     {
@@ -139,7 +137,6 @@ let commands = {
       display: "Toggle timer display",
       exec: () => {
         toggleShowTimerProgress();
-        saveConfigToCookie();
       },
     },
     {
@@ -449,6 +446,7 @@ let commands = {
       id: "toggleKeymap",
       display: "Change keymap mode...",
       subgroup: true,
+      alias: "keyboard",
       exec: () => {
         currentCommands.push(commandsKeymapMode);
         showCommandLine();
@@ -457,6 +455,7 @@ let commands = {
     {
       id: "changeKeymapStyle",
       display: "Change keymap style...",
+      alias: "keyboard",
       subgroup: true,
       exec: () => {
         currentCommands.push(commandsKeymapStyle);
@@ -466,6 +465,7 @@ let commands = {
     {
       id: "changeKeymapLayout",
       display: "Change keymap layout...",
+      alias: "keyboard",
       subgroup: true,
       exec: () => {
         currentCommands.push(commandsKeymapLayouts);
@@ -502,7 +502,7 @@ let commands = {
     {
       id: "randomiseTheme",
       display: "Next random theme",
-      exec: () => ThemeController.randomiseTheme(config),
+      exec: () => ThemeController.randomiseTheme(),
     },
     {
       id: "viewTypingPage",
@@ -593,17 +593,19 @@ let commands = {
         restartTest(true);
       },
       available: () => {
-        return resultVisible;
+        return TestUI.resultVisible;
       },
     },
     {
       id: "practiceMissedWords",
       display: "Practice missed words",
       exec: () => {
-        initPractiseMissedWords();
+        PractiseMissed.init(setMode, restartTest);
       },
       available: () => {
-        return resultVisible && Object.keys(TestStats.missedWords).length > 0;
+        return (
+          TestUI.resultVisible && Object.keys(TestStats.missedWords).length > 0
+        );
       },
     },
     {
@@ -613,28 +615,24 @@ let commands = {
         toggleResultWordsDisplay();
       },
       available: () => {
-        return resultVisible;
+        return TestUI.resultVisible;
       },
     },
     {
       id: "saveScreenshot",
       display: "Save screenshot",
       exec: () => {
-        copyResultToClipboard();
+        TestUI.screenshot();
       },
       available: () => {
-        return resultVisible;
+        return TestUI.resultVisible;
       },
     },
     {
       id: "changeCustomModeText",
       display: "Change custom text",
       exec: () => {
-        showCustomTextPopup();
-        setTimeout(() => {
-          // Workaround to focus textarea since hideCommandLine() will focus test words
-          $("#customTextPopup textarea").focus();
-        }, 150);
+        CustomTextPopup.show();
       },
     },
     {
@@ -778,7 +776,7 @@ let commandsSoundOnClick = {
       display: "1",
       exec: () => {
         setPlaySoundOnClick("1");
-        Sound.playClick(config.playSoundOnClick);
+        Sound.playClick(Config.playSoundOnClick);
       },
     },
     {
@@ -786,7 +784,7 @@ let commandsSoundOnClick = {
       display: "2",
       exec: () => {
         setPlaySoundOnClick("2");
-        Sound.playClick(config.playSoundOnClick);
+        Sound.playClick(Config.playSoundOnClick);
       },
     },
     {
@@ -794,7 +792,7 @@ let commandsSoundOnClick = {
       display: "3",
       exec: () => {
         setPlaySoundOnClick("3");
-        Sound.playClick(config.playSoundOnClick);
+        Sound.playClick(Config.playSoundOnClick);
       },
     },
     {
@@ -802,7 +800,7 @@ let commandsSoundOnClick = {
       display: "4",
       exec: () => {
         setPlaySoundOnClick("4");
-        Sound.playClick(config.playSoundOnClick);
+        Sound.playClick(Config.playSoundOnClick);
       },
     },
   ],
@@ -1372,7 +1370,7 @@ let commandsMode = {
       display: "zen",
       exec: () => {
         setMode("zen");
-        manualRestart = true;
+        ManualRestart.set();
         restartTest();
       },
     },
@@ -1541,12 +1539,11 @@ function updateCommandsTagsList() {
         DB.getSnapshot().tags.forEach((tag) => {
           tag.active = false;
         });
-        updateTestModesNotice(
+        TestUI.updateModesNotice(
           sameWordset,
           textHasTab,
           paceCaret,
-          activeFunBox,
-          config
+          activeFunbox
         );
         saveActiveTagsToCookie();
       },
@@ -1567,12 +1564,11 @@ function updateCommandsTagsList() {
         sticky: true,
         exec: () => {
           toggleTag(tag.id);
-          updateTestModesNotice(
+          TestUI.updateModesNotice(
             sameWordset,
             textHasTab,
             paceCaret,
-            activeFunBox,
-            config
+            activeFunbox
           );
           let txt = tag.name;
 
@@ -1614,9 +1610,9 @@ Misc.getThemesList().then((themes) => {
 });
 
 function showFavouriteThemesAtTheTop() {
-  if (config.favThemes.length > 0) {
+  if (Config.favThemes.length > 0) {
     commandsThemes.list = [];
-    config.favThemes.forEach((theme) => {
+    Config.favThemes.forEach((theme) => {
       commandsThemes.list.push({
         id: "changeTheme" + Misc.capitalizeFirstLetter(theme),
         display: theme.replace(/_/g, " "),
@@ -1631,7 +1627,7 @@ function showFavouriteThemesAtTheTop() {
     });
     Misc.getThemesList().then((themes) => {
       themes.forEach((theme) => {
-        if (config.favThemes.includes(theme.name)) return;
+        if (Config.favThemes.includes(theme.name)) return;
         commandsThemes.list.push({
           id: "changeTheme" + Misc.capitalizeFirstLetter(theme.name),
           display: theme.name.replace(/_/g, " "),
@@ -1655,20 +1651,20 @@ let commandsFonts = {
 
 function canBailOut() {
   return (
-    (config.mode === "custom" &&
+    (Config.mode === "custom" &&
       CustomText.isWordRandom &&
       CustomText.word >= 5000) ||
-    (config.mode === "custom" &&
+    (Config.mode === "custom" &&
       !CustomText.isWordRandom &&
       !CustomText.isTimeRandom &&
       CustomText.text.length >= 5000) ||
-    (config.mode === "custom" &&
+    (Config.mode === "custom" &&
       CustomText.isTimeRandom &&
       CustomText.time >= 3600) ||
-    (config.mode === "words" && config.words >= 5000) ||
-    config.words === 0 ||
-    (config.mode === "time" && (config.time >= 3600 || config.time === 0)) ||
-    config.mode == "zen"
+    (Config.mode === "words" && Config.words >= 5000) ||
+    Config.words === 0 ||
+    (Config.mode === "time" && (Config.time >= 3600 || Config.time === 0)) ||
+    Config.mode == "zen"
   );
 }
 
@@ -1715,12 +1711,12 @@ function isSingleListCommandLineActive() {
 
 function useSingleListCommandLine(show = true) {
   let allCommands = generateSingleListOfCommands();
-  if (config.singleListCommandLine == "manual")
+  if (Config.singleListCommandLine == "manual")
     currentCommands.push(allCommands);
-  else if (config.singleListCommandLine == "on")
+  else if (Config.singleListCommandLine == "on")
     currentCommands = [allCommands];
 
-  if (config.singleListCommandLine != "off")
+  if (Config.singleListCommandLine != "off")
     $("#commandLine").addClass("allCommands");
   if (show) showCommandLine();
 }
@@ -1752,7 +1748,7 @@ Misc.getFontsList().then((fonts) => {
     display: "custom...",
     input: true,
     hover: () => {
-      previewFontFamily(config.fontFamily);
+      previewFontFamily(Config.fontFamily);
     },
     exec: (name) => {
       setFontFamily(name.replace(/\s/g, "_"));
@@ -1814,7 +1810,6 @@ Misc.getLanguageList().then((languages) => {
       exec: () => {
         setLanguage(language);
         restartTest();
-        saveConfigToCookie();
       },
     });
   });
@@ -1839,7 +1834,6 @@ if (Object.keys(layouts).length > 0) {
       exec: () => {
         setSavedLayout(layout);
         restartTest();
-        saveConfigToCookie();
       },
     });
   });
@@ -1899,7 +1893,7 @@ $("#commandLine input").keyup((e) => {
 $(document).ready((e) => {
   $(document).keydown((event) => {
     //escape
-    if (event.keyCode == 27 || (event.keyCode == 9 && config.swapEscAndTab)) {
+    if (event.keyCode == 27 || (event.keyCode == 9 && Config.swapEscAndTab)) {
       event.preventDefault();
       if (!$("#leaderboardsWrapper").hasClass("hidden")) {
         //maybe add more condition for closing other dialogs in the future as well
@@ -1913,9 +1907,9 @@ $(document).ready((e) => {
         } else {
           hideCommandLine();
         }
-        setFontFamily(config.fontFamily, true);
-      } else if (event.keyCode == 9 || !config.swapEscAndTab) {
-        if (config.singleListCommandLine == "on")
+        setFontFamily(Config.fontFamily, true);
+      } else if (event.keyCode == 9 || !Config.swapEscAndTab) {
+        if (Config.singleListCommandLine == "on")
           useSingleListCommandLine(false);
         else currentCommands = [commands];
         showCommandLine();
@@ -1989,7 +1983,7 @@ $("#commandLineWrapper #commandLine .suggestions").on("mouseover", (e) => {
       if (obj.id == hoverId) {
         if (!/theme/gi.test(obj.id) || obj.id === "toggleCustomTheme")
           ThemeController.clearPreview();
-        if (!/font/gi.test(obj.id)) previewFontFamily(config.fontFamily);
+        if (!/font/gi.test(obj.id)) previewFontFamily(Config.fontFamily);
         obj.hover();
       }
     });
@@ -2004,11 +1998,11 @@ $("#commandLineWrapper #commandLine .suggestions").click((e) => {
 $("#commandLineWrapper").click((e) => {
   if ($(e.target).attr("id") === "commandLineWrapper") {
     hideCommandLine();
-    setFontFamily(config.fontFamily, true);
-    // if (config.customTheme === true) {
+    setFontFamily(Config.fontFamily, true);
+    // if (Config.customTheme === true) {
     //   applyCustomThemeColors();
     // } else {
-    //   setTheme(config.theme, true);
+    //   setTheme(Config.theme, true);
     // }
   }
 });
@@ -2017,11 +2011,11 @@ $(document).keydown((e) => {
   // if (isPreviewingTheme) {
   // console.log("applying theme");
   // applyCustomThemeColors();
-  // previewTheme(config.theme, false);
+  // previewTheme(Config.theme, false);
   // }
   if (!$("#commandLineWrapper").hasClass("hidden")) {
     $("#commandLine input").focus();
-    if (e.key == ">" && config.singleListCommandLine == "manual") {
+    if (e.key == ">" && Config.singleListCommandLine == "manual") {
       if (!isSingleListCommandLineActive()) {
         useSingleListCommandLine();
         return;
@@ -2034,7 +2028,7 @@ $(document).keydown((e) => {
     if (
       e.keyCode == 8 &&
       $("#commandLine input").val().length == 1 &&
-      config.singleListCommandLine == "manual" &&
+      Config.singleListCommandLine == "manual" &&
       isSingleListCommandLineActive()
     )
       restoreOldCommandLine();
@@ -2109,7 +2103,7 @@ $(document).keydown((e) => {
           if (obj.id == hoverId) {
             if (!/theme/gi.test(obj.id) || obj.id === "toggleCustomTheme")
               ThemeController.clearPreview();
-            if (!/font/gi.test(obj.id)) previewFontFamily(config.fontFamily);
+            if (!/font/gi.test(obj.id)) previewFontFamily(Config.fontFamily);
             obj.hover();
           }
         });
@@ -2154,7 +2148,7 @@ function triggerCommand(command) {
 }
 
 function hideCommandLine() {
-  previewFontFamily(config.fontFamily);
+  previewFontFamily(Config.fontFamily);
   // applyCustomThemeColors();
   ThemeController.clearPreview();
   $("#commandLineWrapper")
@@ -2175,7 +2169,7 @@ function hideCommandLine() {
 }
 
 let showCommandLine = () => {
-  setFocus(false);
+  Focus.set(false);
   $("#commandLine").removeClass("hidden");
   $("#commandInput").addClass("hidden");
   if ($("#commandLineWrapper").hasClass("hidden")) {
@@ -2215,7 +2209,7 @@ function updateSuggestedCommands() {
   let list = currentCommands[currentCommands.length - 1];
   if (
     inputVal[0] === "" &&
-    config.singleListCommandLine === "on" &&
+    Config.singleListCommandLine === "on" &&
     currentCommands.length === 1
   ) {
     $.each(list.list, (index, obj) => {
@@ -2289,7 +2283,7 @@ function displayFoundCommands() {
         if (obj.found) {
           if (!/theme/gi.test(obj.id) || obj.id === "toggleCustomTheme")
             ThemeController.clearPreview();
-          if (!/font/gi.test(obj.id)) previewFontFamily(config.fontFamily);
+          if (!/font/gi.test(obj.id)) previewFontFamily(Config.fontFamily);
           obj.hover();
           return false;
         }

@@ -104,6 +104,18 @@ const refactoredSrc = [
   "./src/js/chart-controller.js",
   "./src/js/theme-controller.js",
   "./src/js/test/caret.js",
+  "./src/js/custom-text-popup.js",
+  "./src/js/manual-restart-tracker.js",
+  "./src/js/config.js",
+  "./src/js/config-set.js",
+  "./src/js/test/focus.js",
+  "./src/js/account-icon.js",
+  "./src/js/test/practise-missed.js",
+  "./src/js/test/test-ui.js",
+  "./src/js/test/keymap.js",
+  "./src/js/test/live-wpm.js",
+  "./src/js/test/caps-warning.js",
+  "./src/js/test/live-acc.js"
 ];
 
 //legacy files
