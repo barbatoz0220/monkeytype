@@ -472,7 +472,7 @@ exports.resetPersonalBests = functions.https.onCall(
   }
 );
 
-function checkIfPB(uid, obj, userdata) {
+async function checkIfPB(uid, obj, userdata) {
   let pbs = null;
   if (obj.mode == "quote") {
     return false;
@@ -866,8 +866,8 @@ function validateResult(result) {
     }
   }
 
-  if (result.chartData.wpm !== undefined) {
-    if (result.chartData.wpm.filter((w) => w > 400).length > 0) return false;
+  if (result.chartData.raw !== undefined) {
+    if (result.chartData.raw.filter((w) => w > 350).length > 0) return false;
   }
 
   if (result.wpm > 100 && result.consistency < 10) return false;
@@ -1383,7 +1383,7 @@ exports.testCompleted = functions.https.onRequest(async (request, response) => {
     //   .then((user) => {
     //     return user.emailVerified;
     //   });
-    emailVerified = true;
+    // emailVerified = true;
 
     // if (obj.funbox === "nospace") {
     //   response.status(200).send({ data: { resultCode: -1 } });
@@ -1459,30 +1459,30 @@ exports.testCompleted = functions.https.onRequest(async (request, response) => {
 
         // let createdDocId = e.id;
         return Promise.all([
-          checkLeaderboards(
-            request.obj,
-            "global",
-            banned,
-            name,
-            verified,
-            emailVerified
-          ),
-          checkLeaderboards(
-            request.obj,
-            "daily",
-            banned,
-            name,
-            verified,
-            emailVerified
-          ),
+          // checkLeaderboards(
+          //   request.obj,
+          //   "global",
+          //   banned,
+          //   name,
+          //   verified,
+          //   emailVerified
+          // ),
+          // checkLeaderboards(
+          //   request.obj,
+          //   "daily",
+          //   banned,
+          //   name,
+          //   verified,
+          //   emailVerified
+          // ),
           checkIfPB(request.uid, request.obj, userdata),
           checkIfTagPB(request.uid, request.obj),
         ])
           .then(async (values) => {
-            let globallb = values[0].insertedAt;
-            let dailylb = values[1].insertedAt;
-            let ispb = values[2];
-            let tagPbs = values[3];
+            // let globallb = values[0].insertedAt;
+            // let dailylb = values[1].insertedAt;
+            let ispb = values[0];
+            let tagPbs = values[1];
             let createdDocId = await stripAndSave(request.uid, request.obj);
             createdDocId = createdDocId.id;
             // console.log(values);
@@ -1493,67 +1493,18 @@ exports.testCompleted = functions.https.onRequest(async (request, response) => {
 
             let newTypingStats = await getIncrementedTypingStats(userdata, obj);
 
-            if (
-              // obj.mode === "time" &&
-              // (obj.mode2 == "15" || obj.mode2 == "60") &&
-              // obj.language === "english"
-              globallb !== null &&
-              dailylb !== null
-            ) {
-              let updatedLbMemory = await getUpdatedLbMemory(
-                userdata,
-                obj.mode,
-                obj.mode2,
-                globallb,
-                dailylb
-              );
-              db.collection("users").doc(request.uid).update({
-                startedTests: newTypingStats.newStarted,
-                completedTests: newTypingStats.newCompleted,
-                timeTyping: newTypingStats.newTime,
-                lbMemory: updatedLbMemory,
-              });
-            } else {
-              db.collection("users").doc(request.uid).update({
-                startedTests: newTypingStats.newStarted,
-                completedTests: newTypingStats.newCompleted,
-                timeTyping: newTypingStats.newTime,
-              });
-            }
-
-            let usr =
-              userdata.discordId !== undefined
-                ? userdata.discordId
-                : userdata.name;
-
-            if (
-              globallb !== null &&
-              globallb.insertedAt >= 0 &&
-              globallb.insertedAt <= 9 &&
-              globallb.newBest
-            ) {
-              let lbstring = `${obj.mode} ${obj.mode2} global`;
-              console.log(
-                `sending command to the bot to announce lb update ${
-                  userdata.discordId
-                } ${globallb + 1} ${lbstring} ${obj.wpm}`
-              );
-
-              announceLbUpdate(
-                usr,
-                globallb.insertedAt + 1,
-                lbstring,
-                obj.wpm,
-                obj.rawWpm,
-                obj.acc
-              );
-            }
+            db.collection("users").doc(request.uid).update({
+              startedTests: newTypingStats.newStarted,
+              completedTests: newTypingStats.newCompleted,
+              timeTyping: newTypingStats.newTime,
+            });
+            // }
 
             let returnobj = {
               resultCode: null,
-              globalLeaderboard: globallb,
-              dailyLeaderboard: dailylb,
-              lbBanned: banned,
+              // globalLeaderboard: globallb,
+              // dailyLeaderboard: dailylb,
+              // lbBanned: banned,
               name: name,
               createdId: createdDocId,
               needsToVerify: values[0].needsToVerify,
@@ -1831,6 +1782,7 @@ exports.saveConfig = functions.https.onCall((request, response) => {
       }
       if (err) return;
       if (key === "resultFilters") return;
+      if (key === "customBackground") return;
       let val = obj[key];
       if (Array.isArray(val)) {
         val.forEach((valarr) => {
@@ -2340,145 +2292,373 @@ exports.unlinkDiscord = functions.https.onRequest((request, response) => {
   }
 });
 
-async function checkLeaderboards(
-  resultObj,
-  type,
-  banned,
-  name,
-  verified,
-  emailVerified
-) {
-  //lb disable
-  // return {
-  //   insertedAt: null,
-  // };
-  //
-  try {
-    if (resultObj.funbox !== "none") {
-      return {
-        insertedAt: null,
-      };
+exports.checkLeaderboards = functions.https.onRequest(
+  async (request, response) => {
+    response.set("Access-Control-Allow-Origin", origin);
+    if (request.method === "OPTIONS") {
+      // Send response to OPTIONS requests
+      response.set("Access-Control-Allow-Methods", "POST, GET, OPTIONS");
+      response.set(
+        "Access-Control-Allow-Headers",
+        "Authorization,Content-Type"
+      );
+      response.set("Access-Control-Max-Age", "3600");
+      response.status(204).send("");
+      return;
     }
-    if (emailVerified === false)
-      return {
-        insertedAt: null,
-        needsToVerifyEmail: true,
-      };
-    if (!name)
-      return {
-        insertedAt: null,
-        noName: true,
-      };
-    if (banned)
-      return {
-        insertedAt: null,
-        banned: true,
-      };
-    if (verified === false)
-      return {
-        insertedAt: null,
-        needsToVerify: true,
-      };
+    request = request.body.data;
 
-    if (
-      resultObj.mode === "time" &&
-      ["15", "60"].includes(String(resultObj.mode2)) &&
-      resultObj.language === "english"
-    ) {
-      return db
-        .runTransaction(async (t) => {
-          const lbdoc = await t.get(
-            db
-              .collection("leaderboards")
-              .where("mode", "==", String(resultObj.mode))
-              .where("mode2", "==", String(resultObj.mode2))
-              .where("type", "==", type)
-          );
-          let lbData;
-          let docid = `${String(resultObj.mode)}_${String(
-            resultObj.mode2
-          )}_${type}`;
-          if (lbdoc.docs.length === 0) {
-            console.log(
-              `no ${resultObj.mode} ${resultObj.mode2} ${type} leaderboard found - creating`
-            );
-            let toAdd = {
-              size: 20,
-              mode: String(resultObj.mode),
-              mode2: String(resultObj.mode2),
-              type: type,
-            };
-            t.set(
+    function verifyValue(val) {
+      let errCount = 0;
+      if (val === null || val === undefined) {
+      } else if (Array.isArray(val)) {
+        //array
+        val.forEach((val2) => {
+          errCount += verifyValue(val2);
+        });
+      } else if (typeof val === "object" && !Array.isArray(val)) {
+        //object
+        Object.keys(val).forEach((valkey) => {
+          errCount += verifyValue(val[valkey]);
+        });
+      } else {
+        if (!/^[0-9a-zA-Z._\-\+]+$/.test(val)) errCount++;
+      }
+      return errCount;
+    }
+    let errCount = verifyValue(request);
+    if (errCount > 0) {
+      console.error(
+        `error checking leaderboard for ${
+          request.uid
+        } error count ${errCount} - bad input - ${JSON.stringify(request.obj)}`
+      );
+      response.status(200).send({
+        data: {
+          status: -999,
+          message: "Bad input",
+        },
+      });
+      return;
+    }
+
+    let emailVerified = await admin
+      .auth()
+      .getUser(request.uid)
+      .then((user) => {
+        return user.emailVerified;
+      });
+
+    try {
+      if (emailVerified === false) {
+        response.status(200).send({
+          data: {
+            needsToVerifyEmail: true,
+          },
+        });
+        return;
+      }
+      if (request.name === undefined) {
+        response.status(200).send({
+          data: {
+            noName: true,
+          },
+        });
+        return;
+      }
+      if (request.banned) {
+        response.status(200).send({
+          data: {
+            banned: true,
+          },
+        });
+        return;
+      }
+      if (request.verified === false) {
+        response.status(200).send({
+          data: {
+            needsToVerify: true,
+          },
+        });
+        return;
+      }
+
+      request.result.name = request.name;
+
+      if (
+        request.result.mode === "time" &&
+        ["15", "60"].includes(String(request.result.mode2)) &&
+        request.result.language === "english" &&
+        request.result.funbox === "none"
+      ) {
+        let global = await db
+          .runTransaction(async (t) => {
+            const lbdoc = await t.get(
               db
                 .collection("leaderboards")
-                .doc(
-                  `${String(resultObj.mode)}_${String(resultObj.mode2)}_${type}`
-                ),
-              toAdd
+                .where("mode", "==", String(request.result.mode))
+                .where("mode2", "==", String(request.result.mode2))
+                .where("type", "==", "global")
             );
-            lbData = toAdd;
-          } else {
-            lbData = lbdoc.docs[0].data();
-          }
-          let boardInfo = lbData;
-          if (
-            boardInfo.minWpm === undefined ||
-            boardInfo.board.length !== boardInfo.size ||
-            (boardInfo.minWpm !== undefined &&
-              resultObj.wpm > boardInfo.minWpm &&
-              boardInfo.board.length === boardInfo.size)
-          ) {
-            let boardData = lbData.board;
-            let lb = new Leaderboard(
-              boardInfo.size,
-              resultObj.mode,
-              resultObj.mode2,
-              boardInfo.type,
-              boardData
-            );
-            let insertResult = lb.insert(resultObj);
-
-            if (insertResult.insertedAt >= 0) {
-              t.update(db.collection("leaderboards").doc(docid), {
-                size: lb.size,
-                type: lb.type,
-                board: lb.board,
-                minWpm: lb.getMinWpm(),
-              });
+            // let lbData;
+            let docid = `${String(request.result.mode)}_${String(
+              request.result.mode2
+            )}_${"global"}`;
+            // if (lbdoc.docs.length === 0) {
+            //   console.log(
+            //     `no ${request.mode} ${request.mode2} ${type} leaderboard found - creating`
+            //   );
+            //   let toAdd = {
+            //     size: 20,
+            //     mode: String(request.mode),
+            //     mode2: String(request.mode2),
+            //     type: type,
+            //   };
+            //   t.set(
+            //     db
+            //       .collection("leaderboards")
+            //       .doc(
+            //         `${String(request.mode)}_${String(request.mode2)}_${type}`
+            //       ),
+            //     toAdd
+            //   );
+            //   lbData = toAdd;
+            // } else {
+            //   lbData = lbdoc.docs[0].data();
+            // }
+            let boardInfo = lbdoc.docs[0].data();
+            if (
+              boardInfo.minWpm === undefined ||
+              boardInfo.board.length !== boardInfo.size ||
+              (boardInfo.minWpm !== undefined &&
+                request.result.wpm > boardInfo.minWpm &&
+                boardInfo.board.length === boardInfo.size)
+            ) {
+              let boardData = boardInfo.board;
+              let lb = new Leaderboard(
+                boardInfo.size,
+                request.result.mode,
+                request.result.mode2,
+                boardInfo.type,
+                boardData
+              );
+              let insertResult = lb.insert(request.result);
+              if (insertResult.insertedAt >= 0) {
+                t.update(db.collection("leaderboards").doc(docid), {
+                  size: lb.size,
+                  type: lb.type,
+                  board: lb.board,
+                  minWpm: lb.getMinWpm(),
+                });
+              }
+              return insertResult;
+            } else {
+              //not above leaderboard minwpm
+              return {
+                insertedAt: -1,
+              };
             }
+          })
+          .catch((error) => {
+            console.error(
+              `error in transaction checking leaderboards - ${error}`
+            );
+            response.status(200).send({
+              data: {
+                status: -999,
+                message: error,
+              },
+            });
+          });
 
-            return {
-              insertedAt: insertResult,
-            };
-          } else {
-            //not above leaderboard minwpm
-            return {
-              insertedAt: -999,
-            };
-          }
-        })
-        .catch((error) => {
-          console.error(
-            `error in transaction checking leaderboards - ${error}`
+        let daily = await db
+          .runTransaction(async (t) => {
+            const lbdoc = await t.get(
+              db
+                .collection("leaderboards")
+                .where("mode", "==", String(request.result.mode))
+                .where("mode2", "==", String(request.result.mode2))
+                .where("type", "==", "daily")
+            );
+            // let lbData;
+            let docid = `${String(request.result.mode)}_${String(
+              request.result.mode2
+            )}_${"daily"}`;
+            // if (lbdoc.docs.length === 0) {
+            //   console.log(
+            //     `no ${request.mode} ${request.mode2} ${type} leaderboard found - creating`
+            //   );
+            //   let toAdd = {
+            //     size: 20,
+            //     mode: String(request.mode),
+            //     mode2: String(request.mode2),
+            //     type: type,
+            //   };
+            //   t.set(
+            //     db
+            //       .collection("leaderboards")
+            //       .doc(
+            //         `${String(request.mode)}_${String(request.mode2)}_${type}`
+            //       ),
+            //     toAdd
+            //   );
+            //   lbData = toAdd;
+            // } else {
+            //   lbData = lbdoc.docs[0].data();
+            // }
+            let boardInfo = lbdoc.docs[0].data();
+            if (
+              boardInfo.minWpm === undefined ||
+              boardInfo.board.length !== boardInfo.size ||
+              (boardInfo.minWpm !== undefined &&
+                request.result.wpm > boardInfo.minWpm &&
+                boardInfo.board.length === boardInfo.size)
+            ) {
+              let boardData = boardInfo.board;
+              let lb = new Leaderboard(
+                boardInfo.size,
+                request.result.mode,
+                request.result.mode2,
+                boardInfo.type,
+                boardData
+              );
+              let insertResult = lb.insert(request.result);
+              if (insertResult.insertedAt >= 0) {
+                t.update(db.collection("leaderboards").doc(docid), {
+                  size: lb.size,
+                  type: lb.type,
+                  board: lb.board,
+                  minWpm: lb.getMinWpm(),
+                });
+              }
+              return insertResult;
+            } else {
+              //not above leaderboard minwpm
+              return {
+                insertedAt: -1,
+              };
+            }
+          })
+          .catch((error) => {
+            console.error(
+              `error in transaction checking leaderboards - ${error}`
+            );
+            response.status(200).send({
+              data: {
+                status: -999,
+                message: error,
+              },
+            });
+          });
+
+        //send discord update
+        let usr =
+          request.discordId != undefined ? request.discordId : request.name;
+
+        if (
+          global !== null &&
+          global.insertedAt >= 0 &&
+          global.insertedAt <= 9 &&
+          global.newBest
+        ) {
+          let lbstring = `${request.result.mode} ${request.result.mode2} global`;
+          console.log(
+            `sending command to the bot to announce lb update ${usr} ${
+              global.insertedAt + 1
+            } ${lbstring} ${request.result.wpm}`
           );
-          return {
-            insertedAt: null,
-          };
+
+          announceLbUpdate(
+            usr,
+            global.insertedAt + 1,
+            lbstring,
+            request.result.wpm,
+            request.result.rawWpm,
+            request.result.acc,
+            request.result.consistency
+          );
+        }
+
+        //
+
+        if (
+          // obj.mode === "time" &&
+          // (obj.mode2 == "15" || obj.mode2 == "60") &&
+          // obj.language === "english"
+          global !== null ||
+          daily !== null
+        ) {
+          let updatedLbMemory = await getUpdatedLbMemory(
+            request.lbMemory,
+            request.result.mode,
+            request.result.mode2,
+            global,
+            daily
+          );
+          db.collection("users").doc(request.uid).update({
+            lbMemory: updatedLbMemory,
+          });
+        }
+
+        response.status(200).send({
+          data: {
+            status: 2,
+            daily: daily,
+            global: global,
+          },
         });
-    } else {
-      return {
-        insertedAt: null,
-      };
+        return;
+      } else {
+        response.status(200).send({
+          data: {
+            status: 1,
+            daily: {
+              insertedAt: null,
+            },
+            global: {
+              insertedAt: null,
+            },
+          },
+        });
+        return;
+      }
+    } catch (e) {
+      console.log(e);
+      response.status(200).send({
+        data: {
+          status: -999,
+          message: e,
+        },
+      });
+      return;
     }
-  } catch (e) {
-    console.error(
-      `error while checking leaderboards - ${e} - ${type} ${resultObj}`
-    );
-    return {
-      insertedAt: null,
-    };
   }
-}
+);
+
+// async function checkLeaderboards(
+//   resultObj,
+//   type,
+//   banned,
+//   name,
+//   verified,
+//   emailVerified
+// ) {
+//   //lb disable
+//   // return {
+//   //   insertedAt: null,
+//   // };
+//   //
+//   try {
+
+//   } catch (e) {
+//     console.error(
+//       `error while checking leaderboards - ${e} - ${type} ${resultObj}`
+//     );
+//     return {
+//       insertedAt: null,
+//     };
+//   }
+// }
 
 exports.getLeaderboard = functions.https.onCall((request, response) => {
   return db
@@ -2609,10 +2789,10 @@ exports.scheduledFunctionCrontab = functions.pubsub
     }
   });
 
-async function announceLbUpdate(discordId, pos, lb, wpm, raw, acc) {
+async function announceLbUpdate(discordId, pos, lb, wpm, raw, acc, con) {
   db.collection("bot-commands").add({
     command: "sayLbUpdate",
-    arguments: [discordId, pos, lb, wpm, raw, acc],
+    arguments: [discordId, pos, lb, wpm, raw, acc, con],
     executed: false,
     requestTimestamp: Date.now(),
   });
